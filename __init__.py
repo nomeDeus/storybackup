@@ -1,13 +1,17 @@
+#-*- coding:utf-8 -*-
+
 import subprocess
 import sys
 import os
 import re
 import math
 import string
+import threading
 
 from subprocess import check_output, CalledProcessError
 from flask import Flask, Response, request, redirect, url_for
 from werkzeug.utils import secure_filename
+from time import localtime, strftime
 
 from ftplib import FTP
 
@@ -198,13 +202,52 @@ def get_apk_package_name(test_project_name):
 
     ret = ''.join(apk_file_name)
 
+class threadServer(threading.Thread):
+    def __init__(self, test_project_name, nowTime, device_name):
+        threading.Thread.__init__(self)
+        self.pro_name = test_project_name
+        self.Time = nowTime
+        self.dev_name = device_name
+    
+    def run(self):
+        cmd_get_apk_package_name = ['./testing_project.sh', self.pro_name, self.Time, self.dev_name]
+        cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
+
+threadLock = threading.Lock()
+threads = []
+devices = []
+
 @app.route('/testing_project', methods=['GET', 'POST'])
 def testing_project():
     if request.method == 'POST':
+        #catch serial number
+        out = split_lines(subprocess.check_output(['adb', 'devices']))
+        for line in out[1:]:
+            if '* daemon not running. starting it now at tcp:5037 *' in line or 'daemon started successfully' in line:
+                continue
+            else:
+                info = line.split('\t')
+                devices.append(info[0])
+        
+        #抓專案名稱
+        print "Getting test project name."
         test_project_name = request.form.get('test_project_name')
-        cmd_get_apk_package_name = ['./testing_project.sh', test_project_name]
-        cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
-        return cmd_testing_output
+        print "Succeed."
+        
+        #取得現在時間
+        print "Catch time."
+        nowTime = strftime('%Y-%m-%d_%H_%M_%S', localtime())
+        print "Time catched. Time:" + nowTime
+        
+        #進行多執行緒(Multi-Threading)
+        print "Project processing..."
+        #創立、執行線程接著加入threads的陣列裡面
+        for i in range(len(devices)):
+            t = threadServer(test_project_name, nowTime, devices[i])
+            t.start()
+            threads.append(t)
+
+        return "All projects complete."
 
     return '''
         Please re-enter the command
