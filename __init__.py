@@ -203,23 +203,33 @@ def get_apk_package_name(test_project_name):
     ret = ''.join(apk_file_name)
 
 class threadServer(threading.Thread):
-    def __init__(self, test_project_name, nowTime, device_name):
+    def __init__(self, test_project_name, nowTime, device_name, server):
         threading.Thread.__init__(self)
         self.pro_name = test_project_name
         self.Time = nowTime
         self.dev_name = device_name
+        self.svr = server
+        self.lock = threading.Lock()
     
     def run(self):
+        self.lock.acquire()
+        self.svr.stat = False
         cmd_get_apk_package_name = ['./testing_project.sh', self.pro_name, self.Time, self.dev_name]
         cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
+        self.svr.stat = True
+        self.lock.release()
 
-threadLock = threading.Lock()
-threads = []
-devices = []
+class Server():
+    def __init__(self, ID, status):
+        self.ID = ID
+        self.stat = status  #idle = 1, busy = 0
 
 @app.route('/testing_project', methods=['GET', 'POST'])
 def testing_project():
     if request.method == 'POST':
+        threads = []
+        devices = []
+        servers = []
         #catch serial number
         out = split_lines(subprocess.check_output(['adb', 'devices']))
         for line in out[1:]:
@@ -229,25 +239,57 @@ def testing_project():
                 info = line.split('\t')
                 devices.append(info[0])
         
-        #抓專案名稱
-        print "Getting test project name."
+        #catch project name
+        print "Getting test project name and test device amount."
         test_project_name = request.form.get('test_project_name')
-        print "Succeed."
+        if not test_project_name == 'null':
+            print "Test project name: {0}".format(test_project_name)
+        else:
+            print "Can't get test project name."
+            return "Error. Can't get test project name."
+        test_device_amount = request.form.get('test_device_amount')
+        if not test_project_name == 'null':
+            print "Test device amount: {0}".format(test_device_amount)
+        else:
+            print "Can't get test device amount."
+            return "Error. Can't get test device amount."
         
-        #取得現在時間
-        print "Catch time."
+        #get current time
+        print "Getting time."
         nowTime = strftime('%Y-%m-%d_%H_%M_%S', localtime())
-        print "Time catched. Time:" + nowTime
+        print "Current time: " + nowTime
         
-        #進行多執行緒(Multi-Threading)
-        print "Project processing..."
-        #創立、執行線程接著加入threads的陣列裡面
-        for i in range(len(devices)):
-            t = threadServer(test_project_name, nowTime, devices[i])
-            t.start()
-            threads.append(t)
+        for i in xrange(1, 4):
+            s = Server(i, True)
+            servers.append(s)
+        
+        #servers.append(Server(4, True))
+        #servers[0].stat = False
+        #servers[1].stat = False
+        #servers[2].stat = False
 
-        return "All projects complete."
+        count = 0
+        
+        #processins multi-threading
+        print "Project processing..."
+
+        for i in xrange(len(servers)):
+            if servers[i].stat:
+                print "{0} process in server {1}".format(devices[count], servers[i].ID)
+                #to create and start the thread then append it to threads
+                t = threadServer(test_project_name, nowTime, devices[count], servers[i])
+                t.start()
+                threads.append(t)
+                count += 1
+            else:
+                print "Server {0} is busy.".format(servers[i].ID)
+            if count == int(test_device_amount, 10):
+                break
+
+        if count == int(test_device_amount, 10):
+            return "All projects complete."
+        else:
+            return "Server is busy. {0} tested. {1} left.".format(count, int(test_device_amount, 10) - count)
 
     return '''
         Please re-enter the command
