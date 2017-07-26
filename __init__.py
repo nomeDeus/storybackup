@@ -203,33 +203,24 @@ def get_apk_package_name(test_project_name):
     ret = ''.join(apk_file_name)
 
 class threadServer(threading.Thread):
-    def __init__(self, test_project_name, nowTime, device_name, server):
+    def __init__(self, test_project_name, nowTime, device_name):
         threading.Thread.__init__(self)
         self.pro_name = test_project_name
         self.Time = nowTime
         self.dev_name = device_name
-        self.svr = server
         self.lock = threading.Lock()
     
     def run(self):
         self.lock.acquire()
-        self.svr.stat = False
         cmd_get_apk_package_name = ['./testing_project.sh', self.pro_name, self.Time, self.dev_name]
         cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
-        self.svr.stat = True
         self.lock.release()
-
-class Server():
-    def __init__(self, ID, status):
-        self.ID = ID
-        self.stat = status  #idle = 1, busy = 0
 
 @app.route('/testing_project', methods=['GET', 'POST'])
 def testing_project():
     if request.method == 'POST':
         threads = []
         devices = []
-        servers = []
         #catch serial number
         out = split_lines(subprocess.check_output(['adb', 'devices']))
         for line in out[1:]:
@@ -240,56 +231,50 @@ def testing_project():
                 devices.append(info[0])
         
         #catch project name
-        print "Getting test project name and test device amount."
+        print "Getting test project name."
         test_project_name = request.form.get('test_project_name')
         if not test_project_name == 'null':
             print "Test project name: {0}".format(test_project_name)
         else:
             print "Can't get test project name."
             return "Error. Can't get test project name."
+        #catch device amount
+        print "Getting test device amount."
         test_device_amount = request.form.get('test_device_amount')
         if not test_project_name == 'null':
             print "Test device amount: {0}".format(test_device_amount)
         else:
             print "Can't get test device amount."
             return "Error. Can't get test device amount."
-        
+
+        count = 0
+        isCompleteAll = False
+        device_amount = int(test_device_amount, 10)
+
+        if device_amount == 0:
+            return "Error: test_device_amout = 0"
+
         #get current time
         print "Getting time."
         nowTime = strftime('%Y-%m-%d_%H_%M_%S', localtime())
         print "Current time: " + nowTime
         
-        for i in xrange(1, 4):
-            s = Server(i, True)
-            servers.append(s)
-        
-        #servers.append(Server(4, True))
-        #servers[0].stat = False
-        #servers[1].stat = False
-        #servers[2].stat = False
-
-        count = 0
-        
         #processins multi-threading
-        print "Project processing..."
-
-        for i in xrange(len(servers)):
-            if servers[i].stat:
-                print "{0} process in server {1}".format(devices[count], servers[i].ID)
-                #to create and start the thread then append it to threads
-                t = threadServer(test_project_name, nowTime, devices[count], servers[i])
-                t.start()
-                threads.append(t)
-                count += 1
-            else:
-                print "Server {0} is busy.".format(servers[i].ID)
-            if count == int(test_device_amount, 10):
+        for i in xrange(device_amount):
+            print "{0} processing...".format(devices[count])
+            #to create and start the thread then append it to threads
+            t = threadServer(test_project_name, nowTime, devices[count])
+            t.start()
+            threads.append(t)
+            count += 1
+            if count == device_amount:
+                isCompleteAll = True
                 break
 
-        if count == int(test_device_amount, 10):
+        if isCompleteAll:
             return "All projects complete."
         else:
-            return "Server is busy. {0} tested. {1} left.".format(count, int(test_device_amount, 10) - count)
+            return "{0} tested. {1} left.".format(count, device_amount)
 
     return '''
         Please re-enter the command
