@@ -341,12 +341,10 @@ def get_devices_status():
     with codecs.open('devices.json', 'w', 'utf-8') as f:
         f.write(parsed_json)
 
-#json_dict = json.loads(parsed_json)
+    json_dict = json.loads(parsed_json)
     
-#    for key, value in json_dict.items():
-#        print("key:%s, value:%s" % (key, value))
-    
-    return Response(parsed_json)
+    return Response(json_dict)
+
 
 
 if __name__ == "__main__":
