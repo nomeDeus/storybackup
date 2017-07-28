@@ -8,8 +8,9 @@ import threading
 import json
 import codecs
 
+
 from subprocess import check_output, CalledProcessError
-from flask import Flask, Response, request, redirect, url_for
+from flask import Flask, Response, request, redirect, url_for, jsonify
 from werkzeug.utils import secure_filename
 from time import localtime, strftime
 
@@ -18,7 +19,7 @@ from ftplib import FTP
 host='127.0.0.1'
 
 UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = set(['apk'])
+ALLOWED_EXTENSIONS = set(['apk','json'])
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -35,6 +36,38 @@ def split_lines(s):
     # >>> re.split(r'\n', 'foo\n')
     # ['foo', '']
     return re.split(r'[\r\n]+', s.rstrip())
+
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/api', methods=['GET', 'POST'])
+def add_message():
+    if request.method == 'POST':
+        # check if the post request has the file part
+        if 'file' not in request.files:
+            
+            return redirect(request.url)
+        file = request.files['file']
+        # if user does not select file, browser also
+        # submit a empty part without filename
+        if file.filename == '':
+            
+            return redirect(request.url)
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            return redirect(url_for('uploaded_file',
+                                    filename=filename))
+    return '''
+        <!doctype html>
+        <title>Upload new File</title>
+        <h1>Upload new File</h1>
+        <form method=post enctype=multipart/form-data>
+        <p><input type=file name=file>
+        <input type=submit value=Upload>
+        </form>
+        '''
 
 @app.route("/")
 def home():
