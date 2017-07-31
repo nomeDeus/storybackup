@@ -14,8 +14,6 @@ from flask import Flask, Response, request, redirect, url_for, jsonify
 from werkzeug.utils import secure_filename
 from time import localtime, strftime
 
-from ftplib import FTP
-
 host='127.0.0.1'
 
 UPLOAD_FOLDER = 'uploads'
@@ -42,32 +40,17 @@ def allowed_file(filename):
         filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/api', methods=['GET', 'POST'])
-def add_message():
+def upload():
     if request.method == 'POST':
-        # check if the post request has the file part
-        if 'file' not in request.files:
-            
-            return redirect(request.url)
+        test_project_name = request.form.get('test_project_name')
         file = request.files['file']
-        # if user does not select file, browser also
-        # submit a empty part without filename
-        if file.filename == '':
-            
-            return redirect(request.url)
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            return redirect(url_for('uploaded_file',
-                                    filename=filename))
-    return '''
-        <!doctype html>
-        <title>Upload new File</title>
-        <h1>Upload new File</h1>
-        <form method=post enctype=multipart/form-data>
-        <p><input type=file name=file>
-        <input type=submit value=Upload>
-        </form>
-        '''
+        cmd_get_apk_package_name = ['./apk_package.sh', test_project_name, file.filename]
+        cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
+        return "OK"
+    return "FAIL"
 
 @app.route("/")
 def home():
