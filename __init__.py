@@ -204,7 +204,6 @@ def upload_file():
                 input 'test_project_name','apk_file','apk_test_file' value.
                 '''
         else:
-            
             test_project_folder = os.path.join(app.config['UPLOAD_FOLDER'], test_project_name)
             
             if not os.path.exists(test_project_folder):
@@ -254,28 +253,43 @@ class threadServer(threading.Thread):
 
 @app.route('/check')
 def check_status():
-    device_name = []
+    devices = []
+    mode = "Idle"
     
     with codecs.open('devices.json', 'r', 'utf-8') as f:
         parsed_json = f.read()
     json_text = json.loads(parsed_json)
     json_dict = json.loads(json_text, object_pairs_hook=OrderedDict)
 
-    for i in xrange(len(json_dict)):
-        for key, value in json_dict[i].items():
-            if key == "devices":
-                device_name.append(value)
+    devices.append("<table>")
 
-    for i in xrange(len(device_name)):
-        check = ['./test.sh', device_name[i]]
-        output = subprocess.check_output(check)
-        f = open('tmp', 'r')
-        status = f.read()
-        str = "com.example.android"
-        if not status.find(str):
-            return "Busy"
-        else:
-            return "Idle"
+    for i in xrange(len(json_dict)):
+        devices.append("<tr>")
+        for key, value in json_dict[i].items():
+            devices.append("<td>")
+            devices.append(value)
+            devices.append("</td>")
+            
+            if key == "devices":
+                check = ['./test.sh', value]
+                output = subprocess.check_output(check)
+                f = open('tmp', 'r')
+                status = f.read()
+                str = "com.example.android"
+                if not status.find(str):
+                    mode = "Busy"
+                else:
+                    mode = "Idle"
+
+        devices.append("<td>")
+        devices.append(mode)
+        devices.append("</td>")
+        devices.append("</tr>")
+
+    devices.append("</table>")
+
+    ret = ''.join(devices)
+    return Response(ret)
 
 @app.route('/testing_project', methods=['GET', 'POST'])
 def testing_project():
@@ -402,8 +416,16 @@ def get_devices_status():
             devices.append('"density":')
             cmd_adb_get_devices_lcd_density = ['adb']
             cmd_adb_get_devices_lcd_density.extend(['-s' , info[0]])
-            cmd_adb_get_devices_lcd_density.extend(['shell' , 'getprop ro.sf.lcd_density'])
+            cmd_adb_get_devices_lcd_density.extend(['shell' , 'getprop qemu.sf.lcd_density'])
             cmd_adb_get_devices_lcd_density = subprocess.check_output(cmd_adb_get_devices_lcd_density).strip('\r\n')
+            try:
+                x = float(cmd_adb_get_devices_lcd_density)
+            except ValueError:
+                cmd_adb_get_devices_lcd_density = ['adb']
+                cmd_adb_get_devices_lcd_density.extend(['-s' , info[0]])
+                cmd_adb_get_devices_lcd_density.extend(['shell' , 'getprop ro.sf.lcd_density'])
+                cmd_adb_get_devices_lcd_density = subprocess.check_output(cmd_adb_get_devices_lcd_density).strip('\r\n')
+            
             devices.append('"')
             devices.append(cmd_adb_get_devices_lcd_density)
             devices.append('"')
