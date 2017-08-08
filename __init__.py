@@ -321,7 +321,7 @@ def testing_project():
         #catch device amount
         print "Getting test device amount."
         test_device_amount = request.form.get('test_device_amount')
-        if not test_project_name == 'null':
+        if not test_device_amount == 'null':
             print "Test device amount: {0}".format(test_device_amount)
         else:
             print "Can't get test device amount."
