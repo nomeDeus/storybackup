@@ -295,8 +295,8 @@ def check_status():
 def testing_project():
     if request.method == 'POST':
         threads = []
-        device_name = []
-        device_status = []
+        devices_info = []
+        test_device_condition = [False, False, False, False, False]
         count = 0
         
         #catch serial number
@@ -304,34 +304,76 @@ def testing_project():
             parsed_json = f.read()
         json_text = json.loads(parsed_json)
         json_dict = json.loads(json_text, object_pairs_hook=OrderedDict)
+        
         for i in xrange(len(json_dict)):
             for key, value in json_dict[i].items():
                 if key == "devices":
-                    device_name.append(value)
+                    name = value
+                elif key == "model_name":
+                    model_name = value
+                elif key == "CPU":
+                    CPU = value
+                elif key == "density":
+                    density = value
+                elif key == "size":
+                    size = value
+                elif key == "board_spec":
+                    board_spec = value
+                elif key == "release":
+                    release = value
+                elif key == "API_level":
+                    API_level = value
                 elif key == "status":
-                    device_status.append(value)
+                    status = value
+
+            info = dev_info(name, model_name, CPU, density, size, board_spec, release, API_level, status)
+            devices_info.append(info)
         
-        #catch project name
+        #get project name
         test_project_name = request.form.get('test_project_name')
-        if test_project_name == 'null':
-            return "Error. Can't get test project name."
+        
+        #get Android release
+        test_device_android_release = request.form.get('test_device_android_release')
+        
+        #get API Level
+        test_device_os = request.form.get('test_device_os')
+        
+        #get board specification
+        test_device_deviceType = request.form.get('test_device_deviceType')
+        
+        #get density
+        test_device_display = request.form.get('test_device_display')
+        
+        #get CPU
+        test_device_arch = request.form.get('test_device_arch')
     
         #get current time
         nowTime = strftime('%Y-%m-%d_%H_%M_%S', localtime())
         
         #processins multi-threading
-        for i in xrange(len(device_name)):
+        for i in xrange(len(devices_info)):
+            if test_device_android_release is None or test_device_android_release == devices_info[i].release:
+                test_device_condition[0] = True
+            if test_device_os is None or test_device_os == devices_info[i].API_level:
+                test_device_condition[1] = True
+            if test_device_deviceType is None or test_device_deviceType == devices_info[i].board_spec:
+                test_device_condition[2] = True
+            if test_device_display is None or test_device_display == devices_info[i].density:
+                test_device_condition[3] = True
+            if test_device_arch is None or test_device_arch == devices_info[i].CPU:
+                test_device_condition[4] = True
+            
             #to create and start the thread then append it to threads
-            if device_status == 'device':
-                t = threadServer(test_project_name, nowTime, device_name[count])
+            if all(test_device_condition):
+                t = threadServer(test_project_name, nowTime, devices_info[i].name)
                 t.start()
                 threads.append(t)
                 count += 1
 
-        if count == len(device_name):
+        if count == len(devices_info):
             return "All projects complete."
         else:
-            return "{0} tested. {1} left.".format(count, len(device_name) - count)
+            return "{0} tested. {1} left.".format(count, len(devices_info) - count)
 
     return '''
         Please re-enter the command
