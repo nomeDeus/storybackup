@@ -296,7 +296,6 @@ def testing_project():
     if request.method == 'POST':
         threads = []
         devices_info = []
-        test_device_condition = [False, False, False, False, False]
         count = 0
         
         #catch serial number
@@ -352,6 +351,7 @@ def testing_project():
         
         #processins multi-threading
         for i in xrange(len(devices_info)):
+            test_device_condition = [False, False, False, False, False]
             if test_device_android_release is None or test_device_android_release == devices_info[i].release:
                 test_device_condition[0] = True
             if test_device_os is None or test_device_os == devices_info[i].API_level:
