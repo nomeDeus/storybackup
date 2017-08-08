@@ -297,6 +297,7 @@ def testing_project():
         threads = []
         device_name = []
         device_status = []
+        count = 0
         
         #catch serial number
         with codecs.open('devices.json', 'r', 'utf-8') as f:
@@ -311,50 +312,26 @@ def testing_project():
                     device_status.append(value)
         
         #catch project name
-        print "Getting test project name."
         test_project_name = request.form.get('test_project_name')
-        if not test_project_name == 'null':
-            print "Test project name: {0}".format(test_project_name)
-        else:
-            print "Can't get test project name."
+        if test_project_name == 'null':
             return "Error. Can't get test project name."
-        #catch device amount
-        print "Getting test device amount."
-        test_device_amount = request.form.get('test_device_amount')
-        if not test_device_amount == 'null':
-            print "Test device amount: {0}".format(test_device_amount)
-        else:
-            print "Can't get test device amount."
-            return "Error. Can't get test device amount."
-        
-        count = 0
-        isCompleteAll = False
-        device_amount = int(test_device_amount, 10)
-        
-        if device_amount == 0:
-            return "Error: test_device_amout = 0"
     
         #get current time
-        print "Getting time."
         nowTime = strftime('%Y-%m-%d_%H_%M_%S', localtime())
-        print "Current time: " + nowTime
         
         #processins multi-threading
-        for i in xrange(device_amount):
-            print "{0} processing...".format(device_name[count])
+        for i in xrange(len(device_name)):
             #to create and start the thread then append it to threads
-            t = threadServer(test_project_name, nowTime, device_name[count])
-            t.start()
-            threads.append(t)
-            count += 1
-            if count == device_amount:
-                isCompleteAll = True
-                break
+            if device_status == 'device':
+                t = threadServer(test_project_name, nowTime, device_name[count])
+                t.start()
+                threads.append(t)
+                count += 1
 
-        if isCompleteAll:
+        if count == len(device_name):
             return "All projects complete."
         else:
-            return "{0} tested. {1} left.".format(count, device_amount)
+            return "{0} tested. {1} left.".format(count, len(device_name) - count)
 
     return '''
         Please re-enter the command
