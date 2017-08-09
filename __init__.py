@@ -21,6 +21,15 @@ UPLOAD_FOLDER = 'uploads'
 APK_FILE_FOLDER = 'apk_file'
 APK_TEST_FILE_FOLDER = 'apk_test_file'
 ALLOWED_EXTENSIONS = set(['apk','json'])
+SERIALNO = 0
+MODEL_NAME = 1
+CPU = 2
+DENSITY = 3
+SIZE = 4
+BOARD_SPECIFICATION = 5
+RELEASE = 6
+API_LEVEL = 7
+STATUS = 8
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -40,73 +49,58 @@ def split_lines(s):
     # ['foo', '']
     return re.split(r'[\r\n]+', s.rstrip())
 
-class dev_info():
-    def __init__(self, name, model_name, CPU, density, size, board_spec, release, API_level, status):
-        self.name = name
-        self.model_name = model_name
-        self.CPU = CPU
-        self.density = density
-        self.size = size
-        self.board_spec = board_spec
-        self.release = release
-        self.API_level = API_level
-        self.status = status
-
 @app.route("/")
 def home():
-    out = split_lines(subprocess.check_output(['adb', 'devices']))
-    
     devices_info = []
-    devices = []
-    devices.append("<table>")
-    devices.append("<tr>")
+    devices_info.append("<table>")
+    devices_info.append("<tr>")
     
     # Devices Serialno
-    devices.append("<td>")
-    devices.append("serialno")
-    devices.append("</td>")
+    devices_info.append("<td>")
+    devices_info.append("serialno")
+    devices_info.append("</td>")
     
     # Devices Model Name
-    devices.append("<td>")
-    devices.append("model name")
-    devices.append("</td>")
+    devices_info.append("<td>")
+    devices_info.append("model name")
+    devices_info.append("</td>")
     
     # Devices CPU
-    devices.append("<td>")
-    devices.append("cpu")
-    devices.append("</td>")
+    devices_info.append("<td>")
+    devices_info.append("cpu")
+    devices_info.append("</td>")
     
     # Devices Density
-    devices.append("<td>")
-    devices.append("density")
-    devices.append("</td>")
+    devices_info.append("<td>")
+    devices_info.append("density")
+    devices_info.append("</td>")
     
     # Devices Size
-    devices.append("<td>")
-    devices.append("size")
-    devices.append("</td>")
+    devices_info.append("<td>")
+    devices_info.append("size")
+    devices_info.append("</td>")
     
     # Devices Board Specifications
-    devices.append("<td>")
-    devices.append("Board Specifications")
-    devices.append("</td>")
+    devices_info.append("<td>")
+    devices_info.append("Board Specifications")
+    devices_info.append("</td>")
     
     # Devices release
-    devices.append("<td>")
-    devices.append("release")
-    devices.append("</td>")
+    devices_info.append("<td>")
+    devices_info.append("release")
+    devices_info.append("</td>")
     
     # Devices API Level
-    devices.append("<td>")
-    devices.append("API Level")
-    devices.append("</td>")
+    devices_info.append("<td>")
+    devices_info.append("API Level")
+    devices_info.append("</td>")
     
     # Devices status
-    devices.append("<td>")
-    devices.append("status")
-    devices.append("</td>")
+    devices_info.append("<td>")
+    devices_info.append("status")
+    devices_info.append("</td>")
     
-    devices.append("</tr>")
+    devices_info.append("</tr>")
     
     with codecs.open('devices.json', 'r', 'utf-8') as f:
         parsed_json = f.read()
@@ -115,71 +109,16 @@ def home():
     json_dict = json.loads(json_text, object_pairs_hook=OrderedDict)
 
     for i in xrange(len(json_dict)):
+        devices_info.append("<tr>")
+        
         for key, value in json_dict[i].items():
-            if key == "devices":
-                name = value
-            elif key == "model_name":
-                model_name = value
-            elif key == "CPU":
-                CPU = value
-            elif key == "density":
-                density = value
-            elif key == "size":
-                size = value
-            elif key == "board_spec":
-                board_spec = value
-            elif key == "release":
-                release = value
-            elif key == "API_level":
-                API_level = value
-            elif key == "status":
-                status = value
+            devices_info.append("<td>")
+            devices_info.append(value)
+            devices_info.append("</td>")
 
-        info = dev_info(name, model_name, CPU, density, size, board_spec, release, API_level, status)
-        devices_info.append(info)
-
-    for i in xrange(len(devices_info)):
-        devices.append("<tr>")
-        
-        devices.append("<td>")
-        devices.append(devices_info[i].name)
-        devices.append("</td>")
-        
-        devices.append("<td>")
-        devices.append(devices_info[i].model_name)
-        devices.append("</td>")
-        
-        devices.append("<td>")
-        devices.append(devices_info[i].CPU)
-        devices.append("</td>")
-        
-        devices.append("<td>")
-        devices.append(devices_info[i].density)
-        devices.append("</td>")
-        
-        devices.append("<td>")
-        devices.append(devices_info[i].size)
-        devices.append("</td>")
-        
-        devices.append("<td>")
-        devices.append(devices_info[i].board_spec)
-        devices.append("</td>")
-        
-        devices.append("<td>")
-        devices.append(devices_info[i].release)
-        devices.append("</td>")
-        
-        devices.append("<td>")
-        devices.append(devices_info[i].API_level)
-        devices.append("</td>")
-        
-        devices.append("<td>")
-        devices.append(devices_info[i].status)
-        devices.append("</td>")
-        
-        devices.append("</tr>")
+        devices_info.append("</tr>")
     
-    devices.append("<table>")
+    devices_info.append("<table>")
     ret = ''.join(devices)
     return Response(ret)
 
@@ -253,7 +192,7 @@ class threadServer(threading.Thread):
 
 @app.route('/check')
 def check_status():
-    devices = []
+    devices_info = []
     mode = "Idle"
     
     with codecs.open('devices.json', 'r', 'utf-8') as f:
@@ -261,14 +200,14 @@ def check_status():
     json_text = json.loads(parsed_json)
     json_dict = json.loads(json_text, object_pairs_hook=OrderedDict)
 
-    devices.append("<table>")
+    devices_info.append("<table>")
 
     for i in xrange(len(json_dict)):
-        devices.append("<tr>")
+        devices_info.append("<tr>")
         for key, value in json_dict[i].items():
-            devices.append("<td>")
-            devices.append(value)
-            devices.append("</td>")
+            devices_info.append("<td>")
+            devices_info.append(value)
+            devices_info.append("</td>")
             
             if key == "devices":
                 check = ['./test.sh', value]
@@ -281,12 +220,12 @@ def check_status():
                 else:
                     mode = "Idle"
 
-        devices.append("<td>")
-        devices.append(mode)
-        devices.append("</td>")
-        devices.append("</tr>")
+        devices_info.append("<td>")
+        devices_info.append(mode)
+        devices_info.append("</td>")
+        devices_info.append("</tr>")
 
-    devices.append("</table>")
+    devices_info.append("</table>")
 
     ret = ''.join(devices)
     return Response(ret)
@@ -298,34 +237,33 @@ def testing_project():
         devices_info = []
         count = 0
         
-        #catch serial number
+        #get devices information
         with codecs.open('devices.json', 'r', 'utf-8') as f:
             parsed_json = f.read()
         json_text = json.loads(parsed_json)
         json_dict = json.loads(json_text, object_pairs_hook=OrderedDict)
         
         for i in xrange(len(json_dict)):
+            info = []
             for key, value in json_dict[i].items():
-                if key == "devices":
-                    name = value
-                elif key == "model_name":
-                    model_name = value
-                elif key == "CPU":
-                    CPU = value
-                elif key == "density":
-                    density = value
-                elif key == "size":
-                    size = value
-                elif key == "board_spec":
-                    board_spec = value
-                elif key == "release":
-                    release = value
-                elif key == "API_level":
-                    API_level = value
-                elif key == "status":
-                    status = value
+                info.append(value)
 
-            info = dev_info(name, model_name, CPU, density, size, board_spec, release, API_level, status)
+            devices_info.append(info)
+        
+        #get test json
+        testing_project.json = request.files['testing_project.json']
+        
+        #get test information
+        with codecs.open(testing_project.json, 'r', 'utf-8') as f:
+            parsed_json = f.read()
+        json_text = json.loads(parsed_json)
+        json_dict = json.loads(json_text, object_pairs_hook=OrderedDict)
+        
+        for i in xrange(len(json_dict)):
+            info = []
+            for key, value in json_dict[i].items():
+                info.append(value)
+            
             devices_info.append(info)
         
         #get project name
@@ -349,23 +287,22 @@ def testing_project():
         #get current time
         nowTime = strftime('%Y-%m-%d_%H_%M_%S', localtime())
         
-        #processins multi-threading
         for i in xrange(len(devices_info)):
             test_device_condition = [False, False, False, False, False]
-            if test_device_android_release is None or test_device_android_release == devices_info[i].release:
+            if test_device_android_release is None or test_device_android_release == devices_info[i][RELEASE]:
                 test_device_condition[0] = True
-            if test_device_os is None or test_device_os == devices_info[i].API_level:
+            if test_device_os is None or test_device_os == devices_info[i][API_LEVEL]:
                 test_device_condition[1] = True
-            if test_device_deviceType is None or test_device_deviceType == devices_info[i].board_spec:
+            if test_device_deviceType is None or test_device_deviceType == devices_info[i][BOARD_SPECIFICATION]:
                 test_device_condition[2] = True
-            if test_device_display is None or test_device_display == devices_info[i].density:
+            if test_device_display is None or test_device_display == devices_info[i][DENSITY]:
                 test_device_condition[3] = True
-            if test_device_arch is None or test_device_arch == devices_info[i].CPU:
+            if test_device_arch is None or test_device_arch == devices_info[i][CPU]:
                 test_device_condition[4] = True
-            
-            #to create and start the thread then append it to threads
+
+            #processins multi-threading
             if all(test_device_condition):
-                t = threadServer(test_project_name, nowTime, devices_info[i].name)
+                t = threadServer(test_project_name, nowTime, devices_info[i][SERIALNO])
                 t.start()
                 threads.append(t)
                 count += 1
@@ -384,9 +321,9 @@ def get_devices_status():
     out = split_lines(subprocess.check_output(['adb', 'devices']))
 
     count = 0
-    devices = []
+    devices_info = []
 
-    devices.append('[')
+    devices_info.append('[')
     for line in out[1:]:
         if not line.strip():
             continue
@@ -396,43 +333,43 @@ def get_devices_status():
         if '* daemon not running. starting it now at tcp:5037 *' in line or 'daemon started successfully' in line:
             continue
         else:
-            devices.append('{')
+            devices_info.append('{')
             
             # Devices Serialno
             info = line.split('\t')
-            devices.append('"devices":')
-            devices.append('"')
-            devices.append(info[0])
-            devices.append('"')
+            devices_info.append('"devices":')
+            devices_info.append('"')
+            devices_info.append(info[0])
+            devices_info.append('"')
             
-            devices.append(',')
+            devices_info.append(',')
             
             # Devices Model Name
-            devices.append('"model_name":')
+            devices_info.append('"model_name":')
             cmd_adb_get_devices_model = ['adb']
             cmd_adb_get_devices_model.extend(['-s' , info[0]])
             cmd_adb_get_devices_model.extend(['shell' , 'getprop ro.product.model'])
             cmd_adb_get_devices_model = subprocess.check_output(cmd_adb_get_devices_model).strip('\r\n')
-            devices.append('"')
-            devices.append(cmd_adb_get_devices_model)
-            devices.append('"')
+            devices_info.append('"')
+            devices_info.append(cmd_adb_get_devices_model)
+            devices_info.append('"')
             
-            devices.append(',')
+            devices_info.append(',')
             
             # Devices CPU
-            devices.append('"CPU":')
+            devices_info.append('"CPU":')
             cmd_adb_get_devices_cpu = ['adb']
             cmd_adb_get_devices_cpu.extend(['-s' , info[0]])
             cmd_adb_get_devices_cpu.extend(['shell' , 'getprop ro.product.cpu.abi'])
             cmd_adb_get_devices_cpu = subprocess.check_output(cmd_adb_get_devices_cpu).strip('\r\n')
-            devices.append('"')
-            devices.append(cmd_adb_get_devices_cpu)
-            devices.append('"')
+            devices_info.append('"')
+            devices_info.append(cmd_adb_get_devices_cpu)
+            devices_info.append('"')
             
-            devices.append(',')
+            devices_info.append(',')
             
             # Devices Density
-            devices.append('"density":')
+            devices_info.append('"density":')
             cmd_adb_get_devices_lcd_density = ['adb']
             cmd_adb_get_devices_lcd_density.extend(['-s' , info[0]])
             cmd_adb_get_devices_lcd_density.extend(['shell' , 'getprop qemu.sf.lcd_density'])
@@ -445,73 +382,73 @@ def get_devices_status():
                 cmd_adb_get_devices_lcd_density.extend(['shell' , 'getprop ro.sf.lcd_density'])
                 cmd_adb_get_devices_lcd_density = subprocess.check_output(cmd_adb_get_devices_lcd_density).strip('\r\n')
             
-            devices.append('"')
-            devices.append(cmd_adb_get_devices_lcd_density)
-            devices.append('"')
+            devices_info.append('"')
+            devices_info.append(cmd_adb_get_devices_lcd_density)
+            devices_info.append('"')
             
-            devices.append(',')
+            devices_info.append(',')
             
             # Devices Size
-            devices.append('"size":')
+            devices_info.append('"size":')
             cmd_adb_get_devices_size = ['adb']
             cmd_adb_get_devices_size.extend(['-s' , info[0]])
             cmd_adb_get_devices_size.extend(['shell' , 'wm size'])
             cmd_adb_get_devices_size = subprocess.check_output(cmd_adb_get_devices_size).strip('\r\n')
             devices_split = cmd_adb_get_devices_size.split(':')
-            devices.append('"')
-            devices.append(devices_split[1])
-            devices.append('"')
+            devices_info.append('"')
+            devices_info.append(devices_split[1])
+            devices_info.append('"')
             
-            devices.append(',')
+            devices_info.append(',')
             
             # Devices Board Specifications
-            devices.append('"board_spec":')
+            devices_info.append('"board_spec":')
             devices_size = devices_split[1].split('x')
             display_size = math.sqrt(pow(float(devices_size[0])/float(cmd_adb_get_devices_lcd_density),2)+pow(float(devices_size[1])/float(cmd_adb_get_devices_lcd_density),2))
-            devices.append('"')
+            devices_info.append('"')
             if display_size >= 7:
-                devices.append('Tablet')
+                devices_info.append('Tablet')
             else :
-                devices.append('SmartPhone')
-            devices.append('"')
+                devices_info.append('SmartPhone')
+            devices_info.append('"')
             
-            devices.append(',')
+            devices_info.append(',')
             
             # Devices release
-            devices.append('"release":')
+            devices_info.append('"release":')
             cmd_adb_get_devices_version_release = ['adb']
             cmd_adb_get_devices_version_release.extend(['-s' , info[0]])
             cmd_adb_get_devices_version_release.extend(['shell' , 'getprop ro.build.version.release'])
             cmd_adb_get_devices_version_release = subprocess.check_output(cmd_adb_get_devices_version_release).strip('\r\n')
-            devices.append('"Android ')
-            devices.append(cmd_adb_get_devices_version_release)
-            devices.append('"')
+            devices_info.append('"Android ')
+            devices_info.append(cmd_adb_get_devices_version_release)
+            devices_info.append('"')
             
-            devices.append(',')
+            devices_info.append(',')
 
             # Devices API Level
-            devices.append('"API_level":')
+            devices_info.append('"API_level":')
             cmd_adb_get_devices_api_level = ['adb']
             cmd_adb_get_devices_api_level.extend(['-s' , info[0]])
             cmd_adb_get_devices_api_level.extend(['shell' , 'getprop ro.build.version.sdk'])
             cmd_adb_get_devices_api_level = subprocess.check_output(cmd_adb_get_devices_api_level).strip('\r\n')
-            devices.append('"API ')
-            devices.append(cmd_adb_get_devices_api_level)
-            devices.append('"')
+            devices_info.append('"API ')
+            devices_info.append(cmd_adb_get_devices_api_level)
+            devices_info.append('"')
 
-            devices.append(',')
+            devices_info.append(',')
                 
-            devices.append('"status":')
-            devices.append('"')
-            devices.append(info[1])
-            devices.append('"')
+            devices_info.append('"status":')
+            devices_info.append('"')
+            devices_info.append(info[1])
+            devices_info.append('"')
                 
-            devices.append('}')
+            devices_info.append('}')
             if not count == (len(out) - 2):
-                devices.append(',')
+                devices_info.append(',')
             count += 1
 
-    devices.append(']')
+    devices_info.append(']')
     ret = ''.join(devices)
     parsed_json = json.dumps(ret)
     with codecs.open('devices.json', 'w', 'utf-8') as f:
