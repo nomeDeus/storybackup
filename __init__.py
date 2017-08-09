@@ -21,15 +21,6 @@ UPLOAD_FOLDER = 'uploads'
 APK_FILE_FOLDER = 'apk_file'
 APK_TEST_FILE_FOLDER = 'apk_test_file'
 ALLOWED_EXTENSIONS = set(['apk','json'])
-SERIALNO = 0
-MODEL_NAME = 1
-CPU = 2
-DENSITY = 3
-SIZE = 4
-BOARD_SPECIFICATION = 5
-RELEASE = 6
-API_LEVEL = 7
-STATUS = 8
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -234,83 +225,63 @@ def check_status():
 def testing_project():
     if request.method == 'POST':
         threads = []
-        devices_info = []
-        count = 0
+        test_info = []
+        devices_match = []
+        num = 0
         
         #get devices information
         with codecs.open('devices.json', 'r', 'utf-8') as f:
-            parsed_json = f.read()
-        json_text = json.loads(parsed_json)
-        json_dict = json.loads(json_text, object_pairs_hook=OrderedDict)
+            devices_parsed_json = f.read()
+        devices_json_text = json.loads(devices_parsed_json)
+        devices_json_dict = json.loads(devices_json_text, object_pairs_hook=OrderedDict)
+        f.close()
         
-        for i in xrange(len(json_dict)):
-            info = []
-            for key, value in json_dict[i].items():
-                info.append(value)
-
-            devices_info.append(info)
+        for i in xrange(len(devices_json_dict)):
+            devices_match.append(True)
         
         #get test json
-        testing_project.json = request.files['testing_project.json']
+        testing_project = request.files['testing_project']
         
         #get test information
-        with codecs.open(testing_project.json, 'r', 'utf-8') as f:
-            parsed_json = f.read()
-        json_text = json.loads(parsed_json)
-        json_dict = json.loads(json_text, object_pairs_hook=OrderedDict)
+        with codecs.open(testing_project.filename, 'r', 'utf-8') as f:
+            test_parsed_json = f.read()
+        test_json_dict = json.loads(test_parsed_json, object_pairs_hook=OrderedDict)
+        f.close()
         
-        for i in xrange(len(json_dict)):
-            info = []
-            for key, value in json_dict[i].items():
-                info.append(value)
-            
-            devices_info.append(info)
-        
-        #get project name
-        test_project_name = request.form.get('test_project_name')
-        
-        #get Android release
-        test_device_android_release = request.form.get('test_device_android_release')
-        
-        #get API Level
-        test_device_os = request.form.get('test_device_os')
-        
-        #get board specification
-        test_device_deviceType = request.form.get('test_device_deviceType')
-        
-        #get density
-        test_device_display = request.form.get('test_device_display')
-        
-        #get CPU
-        test_device_arch = request.form.get('test_device_arch')
-    
         #get current time
         nowTime = strftime('%Y-%m-%d_%H_%M_%S', localtime())
         
-        for i in xrange(len(devices_info)):
-            test_device_condition = [False, False, False, False, False]
-            if test_device_android_release is None or test_device_android_release == devices_info[i][RELEASE]:
-                test_device_condition[0] = True
-            if test_device_os is None or test_device_os == devices_info[i][API_LEVEL]:
-                test_device_condition[1] = True
-            if test_device_deviceType is None or test_device_deviceType == devices_info[i][BOARD_SPECIFICATION]:
-                test_device_condition[2] = True
-            if test_device_display is None or test_device_display == devices_info[i][DENSITY]:
-                test_device_condition[3] = True
-            if test_device_arch is None or test_device_arch == devices_info[i][CPU]:
-                test_device_condition[4] = True
+        #get test project name
+        test_project_name = test_json_dict['project']['project_name']
+        
+        #check conditions
+        for key, value in test_json_dict['devices'].items():
+            if test_json_dict['devices'][key] == '':
+                continue
+            else:
+                for i in xrange(len(devices_json_dict)):
+                    if not devices_match[i]:
+                        continue
 
+                    for dev_key in devices_json_dict[i].keys():
+                        if not test_json_dict['devices'][key] in devices_json_dict[i][dev_key]:
+                            devices_match[i] = False
+                        else:
+                            devices_match[i] = True
+                            break;
+                            
+        for count in xrange(len(devices_json_dict)):
             #processins multi-threading
-            if all(test_device_condition):
-                t = threadServer(test_project_name, nowTime, devices_info[i][SERIALNO])
+            if devices_match[count]:
+                t = threadServer(test_project_name, nowTime, devices_json_dict[count]['devices'])
                 t.start()
                 threads.append(t)
-                count += 1
+                num += 1
 
-        if count == len(devices_info):
+        if num == len(devices_json_dict):
             return "All projects complete."
         else:
-            return "{0} tested. {1} left.".format(count, len(devices_info) - count)
+            return "{0} tested. {1} left.".format(num, len(devices_json_dict) - num)
 
     return '''
         Please re-enter the command
@@ -449,7 +420,7 @@ def get_devices_status():
             count += 1
 
     devices_info.append(']')
-    ret = ''.join(devices)
+    ret = ''.join(devices_info)
     parsed_json = json.dumps(ret)
     with codecs.open('devices.json', 'w', 'utf-8') as f:
         f.write(parsed_json)

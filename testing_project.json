@@ -1,0 +1,15 @@
+{
+  
+    "devices": 
+        {
+            "os": "",
+            "API Level": "API 24",
+            "deviceType": "",
+            "display": "",
+            "arch": "arm64-v8a"
+        },
+    "project": 
+        {
+            "project_name": "story3"
+        }
+}

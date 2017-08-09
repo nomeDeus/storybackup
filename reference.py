@@ -1,9 +1,9 @@
-devices_info: 陣列，存放裝置資訊
+devices_match: 陣列，存放裝置是否符合，預設為Ture -> [第幾個裝置] (True / False)
+threads: 陣列，存放多個thread
+
 parsed_json: 存放從json檔讀到的資訊
 json_text: 將parsed_json的資訊轉成json文字格式
-json_dict: 將json_text做排列動作
-threads: 陣列，存放多個thread
-key: json的索引值
-value: json的數值
-test_device_condition: 陣列，判斷所需條件是否達成
-testing_project.json: 指令，抓取所需的測試資料
+json_dict: 將json_text做成dictionary
+
+testing_project: 抓取所需的測試資料
+testing_project_name: 測試項目名稱
