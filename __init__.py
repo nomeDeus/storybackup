@@ -15,7 +15,7 @@ from werkzeug.utils import secure_filename
 from time import localtime, strftime
 from collections import OrderedDict
 
-host='127.0.0.1'
+host='0.0.0.0'
 
 # Global variable to uploads `testing_projects` json file
 UPLOAD_TESTING_PROJECT = 'uploads_project_json'
@@ -302,10 +302,11 @@ def uploads_testint_project():
             testing_project_json_filename = secure_filename(testing_project_json.filename)
             
             testing_file_str = os.path.join(testing_project_folder, testing_project_json_filename)
+	    print testing_file_str
             testing_project_json.save(testing_file_str)
             
             # read `testing_project_json` file
-            with open(testing_file_str) as data_file:
+            with open(os.path.join(testing_project_folder, testing_project_json_filename)) as data_file:
                 data = json.load(data_file)
             
             for key in data.keys():
@@ -328,6 +329,7 @@ def uploads_testint_project():
             #get current time
             nowTime = strftime('%Y-%m-%d_%H_%M_%S', localtime())
 
+	    # read all connect devices information
             with codecs.open('devices.json', 'r', 'utf-8') as f:
                 parsed_json = f.read()
 
@@ -355,21 +357,21 @@ def uploads_testint_project():
                     elif key == "status":
                         status = value
             
-            info = dev_info(name, model_name, CPU, density, size, board_spec, release, API_level, status)
-            devices_info.append(info)
+            	info = dev_info(name, model_name, CPU, density, size, board_spec, release, API_level, status)
+            	devices_info.append(info)
 
-            #processins multi-threading
+            # processins multi-threading
             for i in xrange(len(devices_info)):
                 test_device_condition = [False, False, False, False, False]
-                if '' in test_device_android_release or test_device_android_release == devices_info[i].release:
+                if test_device_android_release == "" or test_device_android_release == devices_info[i].release:
                     test_device_condition[0] = True
-                if '' in test_device_os or test_device_os == devices_info[i].API_level:
+                if test_device_os == "" or test_device_os == devices_info[i].API_level:
                     test_device_condition[1] = True
-                if '' in test_device_deviceType or test_device_deviceType == devices_info[i].board_spec:
+                if test_device_deviceType == "" or test_device_deviceType == devices_info[i].board_spec:
                     test_device_condition[2] = True
-                if '' in test_device_display or test_device_display == devices_info[i].density:
+                if test_device_display == "" or test_device_display == devices_info[i].density:
                     test_device_condition[3] = True
-                if '' in test_device_arch or test_device_arch == devices_info[i].CPU:
+                if test_device_arch == "" or test_device_arch == devices_info[i].CPU:
                     test_device_condition[4] = True
 
                 print test_device_condition
