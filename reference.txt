@@ -1,0 +1,17 @@
+‘’’
+threads: save multiple threads
+devices_match: check devices are match or not
+count: to calculate how many devices are done
+
+testing_project_json: the file with conditions (testing_project.json)
+testing_project_folder: the directory of testing_project_json exists
+testing_project_json_filename: filename of testing_project_json
+testing_file_str: path of testing_project_json
+
+test_project_name: the name of the project
+data: information of testing_project_json
+nowTime: current time
+parsed_json: information of devices.json
+devices_data: dictionary of parsed_json
+len(devices_data): devices amount
+‘’’
