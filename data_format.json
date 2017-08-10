@@ -1,0 +1,15 @@
+{
+    "devices_info": 
+        [
+            "serial_number",
+            "model_name",
+            "arch",
+            "display",
+            "size",
+            "deviceType",
+            "os",
+            "API level",
+            "status"
+        ]
+        
+}
