@@ -275,23 +275,41 @@ class threadServer(threading.Thread):
         cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
         self.lock.release()
 
+'''
+threads: save multiple threads
+devices_match: check devices are match or not
+count: to calculate how many devices are done
+
+testing_project_json: the file with conditions (testing_project.json)
+testing_project_folder: the directory of testing_project_json exists
+testing_project_json_filename: filename of testing_project_json
+testing_file_str: path of testing_project_json
+
+test_project_name: the name of the project
+data: information of testing_project_json
+nowTime: current time
+parsed_json: information of devices.json
+devices_data: dictionary of parsed_json
+len(devices_data): devices amount
+'''
+
 # Uploads Json file to testing project
-@app.route('/uploads_testint_project', methods=['GET', 'POST'])
-def uploads_testint_project():
+@app.route('/uploads_testing_project', methods=['GET', 'POST'])
+def uploads_testing_project():
     if request.method == 'POST':
         threads = []
-        devices_info = []
+        devices_match = []
         count = 0
         # check if the post request has the file part
-        if 'testint_project_json' not in request.files:
+        if 'testing_project_json' not in request.files:
             
             return redirect(request.url)
         
-        testing_project_json = request.files['testint_project_json']
+        testing_project_json = request.files['testing_project_json']
         
         if (testing_project_json == ''):
             return '''
-                input 'testint_project_json' key and value.
+                input 'testing_project_json' key and value.
                 '''
         else:
             testing_project_folder = os.path.join(app.config['UPLOAD_TESTING_PROJECT'])
@@ -303,7 +321,7 @@ def uploads_testint_project():
             testing_project_json_filename = secure_filename(testing_project_json.filename)
             
             testing_file_str = os.path.join(testing_project_folder, testing_project_json_filename)
-	    print testing_file_str
+            print testing_file_str
             testing_project_json.save(testing_file_str)
             
             # read `testing_project_json` file
@@ -330,67 +348,47 @@ def uploads_testint_project():
             #get current time
             nowTime = strftime('%Y-%m-%d_%H_%M_%S', localtime())
 
-	    # read all connect devices information
+            #read all connect devices information
             with codecs.open('devices.json', 'r', 'utf-8') as f:
-                parsed_json = f.read()
+                parsed_json = json.load(f)
 
-            json_text = json.loads(parsed_json)
-            json_dict = json.loads(json_text, object_pairs_hook=OrderedDict)
-            
-            for i in xrange(len(json_dict)):
-                for key, value in json_dict[i].items():
-                    if key == "devices":
-                        name = value
-                    elif key == "model_name":
-                        model_name = value
-                    elif key == "CPU":
-                        CPU = value
-                    elif key == "density":
-                        density = value
-                    elif key == "size":
-                        size = value
-                    elif key == "board_spec":
-                        board_spec = value
-                    elif key == "release":
-                        release = value
-                    elif key == "API_level":
-                        API_level = value
-                    elif key == "status":
-                        status = value
-            
-            	info = dev_info(name, model_name, CPU, density, size, board_spec, release, API_level, status)
-            	devices_info.append(info)
+            devices_data = json.loads(parsed_json)
+
+            for i in xrange(len(devices_data)):
+                devices_match.append(True)
+
+            #check conditions
+            for key, value in data['devices'].items():
+                if data['devices'][key] == '':
+                    continue
+                else:
+                    for i in xrange(len(devices_data)):
+                        if not devices_match[i]:
+                            continue
+
+                        for dev_key in devices_data[i].keys():
+                            if not data['devices'][key] in devices_data[i][dev_key]:
+                                devices_match[i] = False
+                            else:
+                                devices_match[i] = True
+                                break;
 
             # processins multi-threading
-            for i in xrange(len(devices_info)):
-                test_device_condition = [False, False, False, False, False]
-                if test_device_android_release == "" or test_device_android_release == devices_info[i].release:
-                    test_device_condition[0] = True
-                if test_device_os == "" or test_device_os == devices_info[i].API_level:
-                    test_device_condition[1] = True
-                if test_device_deviceType == "" or test_device_deviceType == devices_info[i].board_spec:
-                    test_device_condition[2] = True
-                if test_device_display == "" or test_device_display == devices_info[i].density:
-                    test_device_condition[3] = True
-                if test_device_arch == "" or test_device_arch == devices_info[i].CPU:
-                    test_device_condition[4] = True
-
-                print test_device_condition
-            
+            for i in xrange(len(devices_data)):
                 #to create and start the thread then append it to threads
-                if all(test_device_condition):
-                    t = threadServer(test_project_name, nowTime, devices_info[i].name)
+                if devices_match[count]:
+                    t = threadServer(test_project_name, nowTime, devices_data[i]['devices'])
                     t.start()
                     threads.append(t)
                     count += 1
 
-            if count == len(devices_info):
+            if count == len(devices_data):
                 return "All projects complete."
             else:
-                return "{0} tested. {1} left.".format(count, len(devices_info) - count)
+                return "{0} tested. {1} left.".format(count, len(devices_data) - count)
 
     return '''
-        input 'testint_project_json' key and value.
+        input 'testing_project_json' key and value.
         '''
 
 @app.route('/testing_project', methods=['GET', 'POST'])
