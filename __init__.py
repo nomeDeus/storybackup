@@ -60,19 +60,25 @@ def split_lines(s):
     return re.split(r'[\r\n]+', s.rstrip())
 
 def read_JSON(path_filename):
-
     with open(path_filename) as data_file:
         data = json.load(data_file)
     return data
+
+def write_JSON(path_filename, str_status):
+    with codecs.open('devices.json', 'w', 'utf-8') as f:
+        f.write(str_status)
 
 def check_dir_exists(path_dir):
     if not os.path.exists(path_dir):
         os.makedirs(path_dir)
 
+def save_upload_files(request_file, path, filename):
+    request_file.save(os.path.join(path, filename))
+
+
 def allowed_file(filename):
     return '.' in filename and \
         filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 @app.route("/")
 def home():
@@ -246,33 +252,20 @@ def upload_file():
             # Get <UPLOAD_FOLDER> / <test_project_name> path
             test_project_folder = os.path.join(app.config['UPLOAD_FOLDER'], test_project_name)
             
-            # Make Dir <UPLOAD_FOLDER> / <test_project_name>
-            if not os.path.exists(test_project_folder):
-                os.makedirs(test_project_folder)
-            
             # Get <UPLOAD_FOLDER> / <test_project_name> / <APK_FILE_FOLDER> path
             test_project_apk_file_folder = os.path.join(test_project_folder, app.config['APK_FILE_FOLDER'])
             
-            # Make Dir <UPLOAD_FOLDER> / <test_project_name> / <APK_FILE_FOLDER>
-            if not os.path.exists(test_project_apk_file_folder):
-                os.makedirs(test_project_apk_file_folder)
+            check_dir_exists(test_project_apk_file_folder)
             
             # Get <UPLOAD_FOLDER> / <test_project_name> / <APK_TEST_FILE_FOLDER> path
             test_project_apk_test_file_folder = os.path.join(test_project_folder, app.config['APK_TEST_FILE_FOLDER'])
             
-            # Make Dir <UPLOAD_FOLDER> / <test_project_name> / <APK_TEST_FILE_FOLDER>
-            if not os.path.exists(test_project_apk_test_file_folder):
-                os.makedirs(test_project_apk_test_file_folder)
+            check_dir_exists(test_project_apk_test_file_folder)
             
-            # Get upload <apk_file> filename
-            apk_file_filename = secure_filename(apk_file.filename)
-            # Save upload <apk_file> filename
-            apk_file.save(os.path.join(test_project_apk_file_folder, apk_file_filename))
+            save_upload_files(apk_file, test_project_apk_file_folder, secure_filename(apk_file.filename))
             
-            # Get upload <apk_test_file> filename
-            apk_test_file_filename = secure_filename(apk_test_file.filename)
-            # Save upload <apk_test_file> filename
-            apk_test_file.save(os.path.join(test_project_apk_test_file_folder, apk_test_file_filename))
+            save_upload_files(apk_test_file, test_project_apk_test_file_folder, secure_filename(apk_test_file.filename))
+            
             return '''
                 uploads ok!
                 '''
@@ -289,8 +282,10 @@ class threadServer(threading.Thread):
         self.lock = threading.Lock()
     
     def run(self):
-        
-        
+        #devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
+        #devices_infomation[self.dev_name]['status'] = 'busy'
+        #str_status = json.dumps(devices_infomation)
+        #write_JSON(app.config['DEVICES_INFORNATION'], str_status)
         self.lock.acquire()
         cmd_get_apk_package_name = ['./testing_project.sh', self.pro_name, self.Time, self.dev_name]
         cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
@@ -317,21 +312,12 @@ def uploads_testing_project():
         if testing_project_json and allowed_file(testing_project_json.filename):
             testing_project_folder = os.path.join(app.config['UPLOAD_TESTING_PROJECT'])
             
-            # To determine whether there is `uploads` folder
-            if not os.path.exists(testing_project_folder):
-                os.makedirs(testing_project_folder)
+            check_dir_exists(testing_project_folder)
             
-            # Get upload <testing_regulation.json> filename
-            testing_project_json_filename = secure_filename(testing_project_json.filename)
-            
-            # To add save folder <testing_result> and <testing_regulation.json> filename
-            testing_file_str = os.path.join(testing_project_folder, testing_project_json_filename)
-            # Save and <testing_regulation.json> filename to folder <testing_result>
-            testing_project_json.save(testing_file_str)
-            
+            save_upload_files(testing_project_json, testing_project_folder, secure_filename(testing_project_json.filename))
             
             # read <testing_project_json> file
-            testing_project_json = read_JSON(os.path.join(testing_project_folder, testing_project_json_filename))
+            testing_project_json = read_JSON(os.path.join(testing_project_folder, secure_filename(testing_project_json.filename)))
         
             test_project_name = testing_project_json['project']['project_name']
             
@@ -344,8 +330,7 @@ def uploads_testing_project():
             
             devices_Through_rules = []
         
-            for i in xrange(len(devices_infomation)):
-                
+            for i in devices_infomation:
                 # check devices status in devices
                 if devices_infomation[i]['status'] == "offline":
                     continue
@@ -361,12 +346,11 @@ def uploads_testing_project():
 
                 if count_testing_qualifications_j == len(testing_project_json['devices']):
                     check_testing_qualifications = True
-                    devices_Through_rules.append(devices_infomation[i]['serialno'])
+                    devices_Through_rules.append(i)
             
             if len(devices_Through_rules) > 0:
                 
                 for devices_serialno in devices_Through_rules:
-                
                     check_dir_exists(os.path.join(app.config['TESTING_RESULT_PROJECT'], test_project_name, nowTime, devices_serialno))
                     t = threadServer(test_project_name, nowTime, devices_serialno)
                     t.start()
@@ -460,7 +444,7 @@ def get_devices_info():
     with codecs.open('data_format.json') as data_file:
         devices_infomation_data = json.load(data_file)
 
-    devices.append('[')
+    devices.append('{')
     for line in out[1:]:
         
         if not line.strip():
@@ -471,6 +455,13 @@ def get_devices_info():
             continue
 
         else:
+            # Devices Serialno
+            info = line.split('\t')
+            devices.append('"')
+            devices.append(info[0])
+            devices.append('"')
+            devices.append(':')
+
             device_json_data_count = 0
             devices.append('{')
             
@@ -484,7 +475,6 @@ def get_devices_info():
                     if key == "serial_number":
                         
                         # Devices Serialno
-                        info = line.split('\t')
                         devices.append('"')
                         devices.append(info[0])
                         devices.append('"')
@@ -506,7 +496,6 @@ def get_devices_info():
                 if key == "serial_number":
                     
                     # Devices Serialno
-                    info = line.split('\t')
                     devices.append('"')
                     devices.append(info[0])
                     devices.append('"')
@@ -574,8 +563,9 @@ def get_devices_info():
             if count < len(out):
                 devices.append(',')
 
-    devices.append(']')
+    devices.append('}')
     ret = ''.join(devices)
+    print type(ret)
     
     with codecs.open('devices.json', 'w', 'utf-8') as f:
         f.write(ret)
