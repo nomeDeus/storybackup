@@ -17,6 +17,8 @@ from collections import OrderedDict
 
 host='127.0.0.1'
 
+app = Flask(__name__)
+
 # Global variable to uploads `testing_projects` json file
 UPLOAD_TESTING_PROJECT = 'uploads_project_json'
 # Global variable to test_result `testing_result`
@@ -27,8 +29,6 @@ APK_FILE_FOLDER = 'apk_file'
 APK_TEST_FILE_FOLDER = 'apk_test_file'
 ALLOWED_EXTENSIONS = set(['apk','json'])
 
-app = Flask(__name__)
-
 # Global variable to uploads `testing_projects` json file
 app.config['UPLOAD_TESTING_PROJECT'] = UPLOAD_TESTING_PROJECT
 # Global variable to test_result `testing_result`
@@ -37,6 +37,14 @@ app.config['TESTING_RESULT_PROJECT'] = TESTING_RESULT_PROJECT
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['APK_FILE_FOLDER'] = APK_FILE_FOLDER
 app.config['APK_TEST_FILE_FOLDER'] = APK_TEST_FILE_FOLDER
+
+DATA_FORMAT = 'data_format.json'
+DEVICES_INFORNATION = 'devices.json'
+
+app.config['DATA_FORMAT'] = DATA_FORMAT
+app.config['DEVICES_INFORNATION'] = DEVICES_INFORNATION
+
+
 
 def split_lines(s):
     """Splits lines in a way that works even on Windows and old devices.
@@ -50,6 +58,21 @@ def split_lines(s):
     # >>> re.split(r'\n', 'foo\n')
     # ['foo', '']
     return re.split(r'[\r\n]+', s.rstrip())
+
+def read_JSON(path_filename):
+
+    with open(path_filename) as data_file:
+        data = json.load(data_file)
+    return data
+
+def check_dir_exists(path_dir):
+    if not os.path.exists(path_dir):
+        os.makedirs(path_dir)
+
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @app.route("/")
 def home():
@@ -266,6 +289,8 @@ class threadServer(threading.Thread):
         self.lock = threading.Lock()
     
     def run(self):
+        
+        
         self.lock.acquire()
         cmd_get_apk_package_name = ['./testing_project.sh', self.pro_name, self.Time, self.dev_name]
         cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
@@ -280,16 +305,16 @@ def uploads_testing_project():
         count = 0
         # check if the post request has the file part
         if 'testing_project_json' not in request.files:
-            
             return redirect(request.url)
         
         testing_project_json = request.files['testing_project_json']
         
-        if (testing_project_json == ''):
+        if testing_project_json.filename == '':
+            print testing_project_json.filename
             return '''
                 input 'testing_project_json' key and value.
                 '''
-        else:
+        if testing_project_json and allowed_file(testing_project_json.filename):
             testing_project_folder = os.path.join(app.config['UPLOAD_TESTING_PROJECT'])
             
             # To determine whether there is `uploads` folder
@@ -304,19 +329,20 @@ def uploads_testing_project():
             # Save and <testing_regulation.json> filename to folder <testing_result>
             testing_project_json.save(testing_file_str)
             
-            # read <testing_project_json> file
-            with open(os.path.join(testing_project_folder, testing_project_json_filename)) as data_file:
-                data = json.load(data_file)
-        
-            test_project_name = data['project']['project_name']
             
-            # read <data_format.json> file to get `devices_info` data format
-            with codecs.open('data_format.json') as data_file:
-                devices_infomation_data = json.load(data_file)
-
-            # read <devices.json>
-            with codecs.open('devices.json') as f:
-                devices_infomation = json.load(f)
+            # read <testing_project_json> file
+            testing_project_json = read_JSON(os.path.join(testing_project_folder, testing_project_json_filename))
+        
+            test_project_name = testing_project_json['project']['project_name']
+            
+            devices_infomation_format = read_JSON(app.config['DATA_FORMAT'])
+            
+            devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
+            
+            # Get current time
+            nowTime = strftime('%Y-%m-%d-%H-%M-%S', localtime())
+            
+            devices_Through_rules = []
         
             for i in xrange(len(devices_infomation)):
                 
@@ -327,51 +353,30 @@ def uploads_testing_project():
                 check_testing_qualifications = False
                 count_testing_qualifications_j = 0
                 
-                for j in data['devices']:
-                    for k in xrange(len(data['devices'][j])):
-                        if data['devices'][j][k] == "" or devices_infomation[i][devices_infomation_data[j]['name']] == data['devices'][j][k]:
+                for j in testing_project_json['devices']:
+                    for k in xrange(len(testing_project_json['devices'][j])):
+                        if testing_project_json['devices'][j][k] == "" or devices_infomation[i][devices_infomation_format[j]['name']] == testing_project_json['devices'][j][k]:
                             count_testing_qualifications_j += 1
                             break
 
-                if count_testing_qualifications_j == len(data['devices']):
+                if count_testing_qualifications_j == len(testing_project_json['devices']):
                     check_testing_qualifications = True
+                    devices_Through_rules.append(devices_infomation[i]['serialno'])
+            
+            if len(devices_Through_rules) > 0:
                 
-                # Get current time
-                nowTime = strftime('%Y-%m-%d-%H-%M-%S', localtime())
+                for devices_serialno in devices_Through_rules:
                 
-                print check_testing_qualifications
-                # if `check_testing_qualifications` is true can run <devices_infomation[i]['serialno']> this devices
-                if check_testing_qualifications:
-                    print test_project_name, nowTime, devices_infomation[i]['serialno']
-                    
-                    testing_result_folder = os.path.join(app.config['TESTING_RESULT_PROJECT'])
-                    
-                    if not os.path.exists(testing_result_folder):
-                        os.makedirs(testing_result_folder)
-                    
-                    testing_project_folder = os.path.join(testing_result_folder, test_project_name)
-
-                    if not os.path.exists(testing_project_folder):
-                        os.makedirs(testing_project_folder)
-
-                    testing_nowTime_folder = os.path.join(testing_project_folder, nowTime)
-    
-                    if not os.path.exists(testing_nowTime_folder):
-                        os.makedirs(testing_nowTime_folder)
-
-                    testing_serialno_folder = os.path.join(testing_nowTime_folder, devices_infomation[i]['serialno'])
-    
-                    if not os.path.exists(testing_serialno_folder):
-                        os.makedirs(testing_serialno_folder)
-
-                    # To create and start the thread then append it to threads
-                    t = threadServer(test_project_name, nowTime, devices_infomation[i]['serialno'])
+                    check_dir_exists(os.path.join(app.config['TESTING_RESULT_PROJECT'], test_project_name, nowTime, devices_serialno))
+                    t = threadServer(test_project_name, nowTime, devices_serialno)
                     t.start()
                     threads.append(t)
                     count += 1
-                        
-            if count == len(devices_infomation):
-                return "All projects complete."
+
+            if count == 0:
+                return "Not devices run projects complete."
+            #elif count == len(devices_infomation):
+                #return "All projects complete."
             else:
                 return "{0} tested. {1} left.".format(count, len(devices_infomation) - count)
 
