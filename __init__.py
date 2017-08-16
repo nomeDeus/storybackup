@@ -191,6 +191,9 @@ def uploads_testing_project():
                     '''
             devices_infomation_format = read_JSON(app.config['DATA_FORMAT'])
             
+            if check_file_is_file(app.config['DEVICES_INFORNATION']):
+                get_devices_info()
+            
             devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
             
             devices_Through_rules = []
