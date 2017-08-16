@@ -343,8 +343,8 @@ def uploads_testing_project():
             nowTime = strftime('%Y-%m-%d-%H-%M-%S', localtime())
             
             devices_Through_rules = []
-        
-            for i in xrange(len(devices_infomation)):
+            
+            for i in devices_infomation:
                 
                 # check devices status in devices
                 if devices_infomation[i]['status'] == "offline":
@@ -451,17 +451,17 @@ def testing_project():
 
 @app.route('/get_devices_info')
 def get_devices_info():
-    out = split_lines(subprocess.check_output(['adb', 'devices']))
+    command_adb_devices = split_lines(subprocess.check_output(['adb', 'devices']))
     
     count = 1
-    devices = []
+    array_devices_information = []
     
     # read data.json file to get `devices_info` data format
     with codecs.open('data_format.json') as data_file:
         devices_infomation_data = json.load(data_file)
 
-    devices.append('[')
-    for line in out[1:]:
+    array_devices_information.append('{')
+    for line in command_adb_devices[1:]:
         
         if not line.strip():
             continue
@@ -472,44 +472,38 @@ def get_devices_info():
 
         else:
             device_json_data_count = 0
-            devices.append('{')
+            
+            # Devices Serialno
+            info = line.split('\t')
+            array_devices_information.append('"')
+            array_devices_information.append(info[0])
+            array_devices_information.append('"')
+            
+            array_devices_information.append(':{')
             
             for key in devices_infomation_data['devices_info']:
-                devices.append('"')
-                devices.append(devices_infomation_data[key]['name'])
-                devices.append('"')
-                devices.append(':')
-                if 'offline' in line:
-                    
-                    if key == "serial_number":
-                        
-                        # Devices Serialno
-                        info = line.split('\t')
-                        devices.append('"')
-                        devices.append(info[0])
-                        devices.append('"')
-                    
-                    elif key == "status":
-                        info = line.split('\t')
-                        devices.append('"')
-                        devices.append(info[1])
-                        devices.append('"')
-                    else :
-                        devices.append('"')
-                        devices.append('"')
-                        device_json_data_count += 1
-                    
-                    if device_json_data_count < len(devices_infomation_data['devices_info']):
-                        devices.append(',')
-                    continue
+                array_devices_information.append('"')
+                array_devices_information.append(devices_infomation_data[key]['name'])
+                array_devices_information.append('"')
+                array_devices_information.append(':')
                 
                 if key == "serial_number":
                     
                     # Devices Serialno
-                    info = line.split('\t')
-                    devices.append('"')
-                    devices.append(info[0])
-                    devices.append('"')
+                    array_devices_information.append('"')
+                    array_devices_information.append(info[0])
+                    array_devices_information.append('"')
+                
+                elif key == "status" or 'offline' in line :
+                    
+                    if key == "status":
+                        array_devices_information.append('"')
+                        array_devices_information.append(info[1])
+                        array_devices_information.append('"')
+                    else :
+                        array_devices_information.append('"')
+                        array_devices_information.append('"')
+                        array_devices_information += 1
         
                 elif key == "display":
                 
@@ -525,62 +519,57 @@ def get_devices_info():
                         cmd_adb_get_devices_lcd_density.extend(['-s' , info[0]])
                         cmd_adb_get_devices_lcd_density.extend(devices_infomation_data[key]['command2'])
                         cmd_adb_get_devices_lcd_density = subprocess.check_output(cmd_adb_get_devices_lcd_density).strip('\r\n')
-                    devices.append('"')
-                    devices.append(cmd_adb_get_devices_lcd_density)
-                    devices.append('"')
+                    array_devices_information.append('"')
+                    array_devices_information.append(cmd_adb_get_devices_lcd_density)
+                    array_devices_information.append('"')
 
                 elif key == "size":
                     cmd_adb_get_devices_size = ['adb']
                     cmd_adb_get_devices_size.extend(['-s' , info[0]])
                     cmd_adb_get_devices_size.extend(devices_infomation_data[key]['command'])
                     cmd_adb_get_devices_size = subprocess.check_output(cmd_adb_get_devices_size).strip('\r\n')
-                    devices_split = cmd_adb_get_devices_size.split(': ')
-                    devices.append('"')
-                    devices.append(devices_split[1])
-                    devices.append('"')
+                    cmd_adb_get_devices_size_split = cmd_adb_get_devices_size.split(': ')
+                    array_devices_information.append('"')
+                    array_devices_information.append(cmd_adb_get_devices_size_split[1])
+                    array_devices_information.append('"')
                 
                 elif key == "deviceType":
                     
-                    devices_size = devices_split[1].split('x')
+                    devices_size = cmd_adb_get_devices_size_split[1].split('x')
                     display_size = math.sqrt(pow(float(devices_size[0])/float(cmd_adb_get_devices_lcd_density),2)+pow(float(devices_size[1])/float(cmd_adb_get_devices_lcd_density),2))
-                    devices.append('"')
+                    array_devices_information.append('"')
                     if display_size >= 7:
-                        devices.append('Tablet')
+                        array_devices_information.append('Tablet')
                     else :
-                        devices.append('Smartphone')
-                    devices.append('"')
-        
-                elif key == "status":
-                
-                    devices.append('"')
-                    devices.append(info[1])
-                    devices.append('"')
-                
+                        array_devices_information.append('Smartphone')
+                    array_devices_information.append('"')
+
                 else:
                     cmd_adb_get_devices_model = ['adb']
                     cmd_adb_get_devices_model.extend(['-s' , info[0]])
                     cmd_adb_get_devices_model.extend(devices_infomation_data[key]['command'])
                     cmd_adb_get_devices_model = subprocess.check_output(cmd_adb_get_devices_model).strip('\r\n')
-                    devices.append('"')
-                    devices.append(cmd_adb_get_devices_model)
-                    devices.append('"')
+                    array_devices_information.append('"')
+                    array_devices_information.append(cmd_adb_get_devices_model)
+                    array_devices_information.append('"')
+
                 device_json_data_count += 1
                 
                 if device_json_data_count < len(devices_infomation_data['devices_info']):
-                    devices.append(',')
+                    array_devices_information.append(',')
 
-            devices.append('}')
+            array_devices_information.append('}')
             count += 1
-            if count < len(out):
-                devices.append(',')
+            if count < len(command_adb_devices):
+                array_devices_information.append(',')
 
-    devices.append(']')
-    ret = ''.join(devices)
+    array_devices_information.append('}')
+    Json_devices_information = ''.join(array_devices_information)
     
-    with codecs.open('devices.json', 'w', 'utf-8') as f:
-        f.write(ret)
+    with codecs.open(app.config['DEVICES_INFORNATION'], 'w', 'utf-8') as f:
+        f.write(Json_devices_information)
 
-    return Response(ret)
+    return Response(Json_devices_information)
 
 if __name__ == "__main__":
     app.debug = True
