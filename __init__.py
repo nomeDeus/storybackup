@@ -17,6 +17,8 @@ from collections import OrderedDict
 
 host='127.0.0.1'
 
+app = Flask(__name__)
+
 # Global variable to uploads `testing_projects` json file
 UPLOAD_TESTING_PROJECT = 'uploads_project_json'
 # Global variable to test_result `testing_result`
@@ -25,9 +27,8 @@ TESTING_RESULT_PROJECT = 'testing_result'
 UPLOAD_FOLDER = 'uploads'
 APK_FILE_FOLDER = 'apk_file'
 APK_TEST_FILE_FOLDER = 'apk_test_file'
-ALLOWED_EXTENSIONS = set(['apk','json'])
-
-app = Flask(__name__)
+ALLOWED_EXTENSIONS_APK = set(['apk'])
+ALLOWED_EXTENSIONS_JSON = set(['json'])
 
 # Global variable to uploads `testing_projects` json file
 app.config['UPLOAD_TESTING_PROJECT'] = UPLOAD_TESTING_PROJECT
@@ -37,6 +38,12 @@ app.config['TESTING_RESULT_PROJECT'] = TESTING_RESULT_PROJECT
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['APK_FILE_FOLDER'] = APK_FILE_FOLDER
 app.config['APK_TEST_FILE_FOLDER'] = APK_TEST_FILE_FOLDER
+
+DATA_FORMAT = 'data_format.json'
+DEVICES_INFORNATION = 'devices.json'
+
+app.config['DATA_FORMAT'] = DATA_FORMAT
+app.config['DEVICES_INFORNATION'] = DEVICES_INFORNATION
 
 def split_lines(s):
     """Splits lines in a way that works even on Windows and old devices.
@@ -51,153 +58,37 @@ def split_lines(s):
     # ['foo', '']
     return re.split(r'[\r\n]+', s.rstrip())
 
-@app.route("/")
-def home():
-    out = split_lines(subprocess.check_output(['adb', 'devices']))
-    
-    devices = []
-    devices.append("<table>")
-    devices.append("<tr>")
-    
-    # Devices Serialno
-    devices.append("<td>")
-    devices.append("serialno")
-    devices.append("</td>")
-    
-    # Devices Model Name
-    devices.append("<td>")
-    devices.append("model name")
-    devices.append("</td>")
-    
-    # Devices CPU
-    devices.append("<td>")
-    devices.append("cpu")
-    devices.append("</td>")
-    
-    # Devices Density
-    devices.append("<td>")
-    devices.append("density")
-    devices.append("</td>")
-    
-    # Devices Size
-    devices.append("<td>")
-    devices.append("size")
-    devices.append("</td>")
-    
-    # Devices Board Specifications
-    devices.append("<td>")
-    devices.append("Board Specifications")
-    devices.append("</td>")
-    
-    # Devices release
-    devices.append("<td>")
-    devices.append("release")
-    devices.append("</td>")
-    
-    # Devices API Level
-    devices.append("<td>")
-    devices.append("API Level")
-    devices.append("</td>")
-    
-    devices.append("</tr>")
-    for line in out[1:]:
-        devices.append("<tr>")
-        if not line.strip():
-            continue
-        if 'offline' in line:
-            continue
-        
-        if '* daemon not running. starting it now at tcp:5037 *' in line or 'daemon started successfully' in line:
-            continue
-        else:
-            # Devices Serialno
-            devices.append("<td>")
-            info = line.split('\t')
-            devices.append(info[0])
-            devices.append("</td>")
-            
-            # Devices Model Name
-            devices.append("<td>")
-            cmd_adb_get_devices_model = ['adb']
-            cmd_adb_get_devices_model.extend(['-s' , info[0]])
-            cmd_adb_get_devices_model.extend(['shell' , 'getprop ro.product.model'])
-            cmd_adb_get_devices_model = subprocess.check_output(cmd_adb_get_devices_model)
-            devices.append(cmd_adb_get_devices_model)
-            devices.append("</td>")
-            
-            # Devices CPU
-            devices.append("<td>")
-            cmd_adb_get_devices_cpu = ['adb']
-            cmd_adb_get_devices_cpu.extend(['-s' , info[0]])
-            cmd_adb_get_devices_cpu.extend(['shell' , 'getprop ro.product.cpu.abi'])
-            cmd_adb_get_devices_cpu = subprocess.check_output(cmd_adb_get_devices_cpu)
-            devices.append(cmd_adb_get_devices_cpu)
-            devices.append("</td>")
-            
-            # Devices Density
-            devices.append("<td>")
-            cmd_adb_get_devices_lcd_density = ['adb']
-            cmd_adb_get_devices_lcd_density.extend(['-s' , info[0]])
-            cmd_adb_get_devices_lcd_density.extend(['shell' , 'getprop qemu.sf.lcd_density'])
-            cmd_adb_get_devices_lcd_density = subprocess.check_output(cmd_adb_get_devices_lcd_density)
-            
-            try:
-                # if `getprop qemu.sf.lcd_density` is not None can be try it
-                x = float(cmd_adb_get_devices_lcd_density)
-            except ValueError:
-                cmd_adb_get_devices_lcd_density = ['adb']
-                cmd_adb_get_devices_lcd_density.extend(['-s' , info[0]])
-                cmd_adb_get_devices_lcd_density.extend(['shell' , 'getprop ro.sf.lcd_density'])
-                cmd_adb_get_devices_lcd_density = subprocess.check_output(cmd_adb_get_devices_lcd_density)
-            
-            devices.append(cmd_adb_get_devices_lcd_density)
-            devices.append("</td>")
-            
-            # Devices Size
-            devices.append("<td>")
-            cmd_adb_get_devices_size = ['adb']
-            cmd_adb_get_devices_size.extend(['-s' , info[0]])
-            cmd_adb_get_devices_size.extend(['shell' , 'wm size'])
-            cmd_adb_get_devices_size = subprocess.check_output(cmd_adb_get_devices_size)
-            devices_split = cmd_adb_get_devices_size.split(':')
-            devices.append(devices_split[1])
-            devices.append("</td>")
-            
-            # Devices Board Specifications
-            devices.append("<td>")
-            devices_size = devices_split[1].split('x')
-            display_size = math.sqrt(pow(float(devices_size[0])/float(cmd_adb_get_devices_lcd_density),2)+pow(float(devices_size[1])/float(cmd_adb_get_devices_lcd_density),2))
-            if display_size >= 7:
-                devices.append('Tablet')
-            else :
-                devices.append('Smartphone')
-            devices.append("</td>")
-            
-            # Devices release
-            devices.append("<td>")
-            cmd_adb_get_devices_version_release = ['adb']
-            cmd_adb_get_devices_version_release.extend(['-s' , info[0]])
-            cmd_adb_get_devices_version_release.extend(['shell' , 'getprop ro.build.version.release'])
-            cmd_adb_get_devices_version_release = subprocess.check_output(cmd_adb_get_devices_version_release)
-            devices.append("Android ")
-            devices.append(cmd_adb_get_devices_version_release)
-            devices.append("</td>")
-            
-            # Devices API Level
-            devices.append("<td>")
-            cmd_adb_get_devices_api_level = ['adb']
-            cmd_adb_get_devices_api_level.extend(['-s' , info[0]])
-            cmd_adb_get_devices_api_level.extend(['shell' , 'getprop ro.build.version.sdk'])
-            cmd_adb_get_devices_api_level = subprocess.check_output(cmd_adb_get_devices_api_level)
-            devices.append("API ")
-            devices.append(cmd_adb_get_devices_api_level)
-            devices.append("</td>")
+def read_JSON(path_filename):
 
-        devices.append("</tr>")
-    
-    devices.append("<table>")
-    ret = ''.join(devices)
-    return Response(ret)
+    with open(path_filename) as data_file:
+        data = json.load(data_file, object_pairs_hook=OrderedDict)
+    return data
+
+# Check directory exists
+# if is not exists, then can create the <path_dir>
+def check_dir_exists(path_dir):
+    if not os.path.exists(path_dir):
+        os.makedirs(path_dir)
+
+def check_project_exists(path_dir):
+    if os.path.exists(path_dir):
+        return False
+    return True
+
+def check_file_is_file(path_filename):
+    if os.path.isfile(path_filename):
+        return False
+    return True
+
+# Check uploads file format in <ALLOWED_EXTENSIONS_APK>
+def allowed_file_apk(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS_APK
+
+# Check uploads file format in <ALLOWED_EXTENSIONS_JSON>
+def allowed_file_json(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS_JSON
 
 @app.route('/uploads', methods=['GET', 'POST'])
 def upload_file():
@@ -214,32 +105,22 @@ def upload_file():
         test_project_name = request.form.get('test_project_name')
         apk_file = request.files['apk_file']
         apk_test_file = request.files['apk_test_file']
-        print test_project_name
-        if (test_project_name is "" or apk_file.filename == '' or apk_test_file.filename == ''):
+        
+        if test_project_name is "" or apk_file.filename == '' or apk_test_file.filename == '':
             return '''
                 input 'test_project_name','apk_file','apk_test_file' value.
                 '''
-        else:
-            # Get <UPLOAD_FOLDER> / <test_project_name> path
-            test_project_folder = os.path.join(app.config['UPLOAD_FOLDER'], test_project_name)
-            
-            # Make Dir <UPLOAD_FOLDER> / <test_project_name>
-            if not os.path.exists(test_project_folder):
-                os.makedirs(test_project_folder)
+        if apk_file and allowed_file_apk(apk_file.filename) and apk_test_file and allowed_file_apk(apk_test_file.filename):
             
             # Get <UPLOAD_FOLDER> / <test_project_name> / <APK_FILE_FOLDER> path
-            test_project_apk_file_folder = os.path.join(test_project_folder, app.config['APK_FILE_FOLDER'])
+            test_project_apk_file_folder = os.path.join(app.config['UPLOAD_FOLDER'], test_project_name, app.config['APK_FILE_FOLDER'])
             
-            # Make Dir <UPLOAD_FOLDER> / <test_project_name> / <APK_FILE_FOLDER>
-            if not os.path.exists(test_project_apk_file_folder):
-                os.makedirs(test_project_apk_file_folder)
+            check_dir_exists(test_project_apk_file_folder)
             
             # Get <UPLOAD_FOLDER> / <test_project_name> / <APK_TEST_FILE_FOLDER> path
-            test_project_apk_test_file_folder = os.path.join(test_project_folder, app.config['APK_TEST_FILE_FOLDER'])
+            test_project_apk_test_file_folder = os.path.join(app.config['UPLOAD_FOLDER'], test_project_name, app.config['APK_TEST_FILE_FOLDER'])
             
-            # Make Dir <UPLOAD_FOLDER> / <test_project_name> / <APK_TEST_FILE_FOLDER>
-            if not os.path.exists(test_project_apk_test_file_folder):
-                os.makedirs(test_project_apk_test_file_folder)
+            check_dir_exists(test_project_apk_test_file_folder)
             
             # Get upload <apk_file> filename
             apk_file_filename = secure_filename(apk_file.filename)
@@ -280,45 +161,44 @@ def uploads_testing_project():
         count = 0
         # check if the post request has the file part
         if 'testing_project_json' not in request.files:
-            
             return redirect(request.url)
         
         testing_project_json = request.files['testing_project_json']
         
-        if (testing_project_json == ''):
+        if testing_project_json.filename == '':
+            print testing_project_json.filename
             return '''
                 input 'testing_project_json' key and value.
                 '''
-        else:
-            testing_project_folder = os.path.join(app.config['UPLOAD_TESTING_PROJECT'])
-            
-            # To determine whether there is `uploads` folder
-            if not os.path.exists(testing_project_folder):
-                os.makedirs(testing_project_folder)
-            
+        if testing_project_json and allowed_file_json(testing_project_json.filename):
+
+            check_dir_exists(app.config['UPLOAD_TESTING_PROJECT'])
+
             # Get upload <testing_regulation.json> filename
             testing_project_json_filename = secure_filename(testing_project_json.filename)
             
-            # To add save folder <testing_result> and <testing_regulation.json> filename
-            testing_file_str = os.path.join(testing_project_folder, testing_project_json_filename)
             # Save and <testing_regulation.json> filename to folder <testing_result>
-            testing_project_json.save(testing_file_str)
+            testing_project_json.save(os.path.join(app.config['UPLOAD_TESTING_PROJECT'], secure_filename(testing_project_json.filename)))
             
             # read <testing_project_json> file
-            with open(os.path.join(testing_project_folder, testing_project_json_filename)) as data_file:
-                data = json.load(data_file)
+            testing_project_json = read_JSON(os.path.join(app.config['UPLOAD_TESTING_PROJECT'], secure_filename(testing_project_json.filename)))
         
-            test_project_name = data['project']['project_name']
+            test_project_name = testing_project_json['project']['project_name']
             
-            # read <data_format.json> file to get `devices_info` data format
-            with codecs.open('data_format.json') as data_file:
-                devices_infomation_data = json.load(data_file)
-
-            # read <devices.json>
-            with codecs.open('devices.json') as f:
-                devices_infomation = json.load(f)
-        
-            for i in xrange(len(devices_infomation)):
+            if check_project_exists(os.path.join(app.config['UPLOAD_FOLDER'], test_project_name)):
+                return '''
+                    You input project name not exists.
+                    '''
+            devices_infomation_format = read_JSON(app.config['DATA_FORMAT'])
+            
+            if check_file_is_file(app.config['DEVICES_INFORNATION']):
+                get_devices_info()
+            
+            devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
+            
+            devices_Through_rules = []
+            
+            for i in devices_infomation:
                 
                 # check devices status in devices
                 if devices_infomation[i]['status'] == "offline":
@@ -327,51 +207,33 @@ def uploads_testing_project():
                 check_testing_qualifications = False
                 count_testing_qualifications_j = 0
                 
-                for j in data['devices']:
-                    for k in xrange(len(data['devices'][j])):
-                        if data['devices'][j][k] == "" or devices_infomation[i][devices_infomation_data[j]['name']] == data['devices'][j][k]:
+                for j in testing_project_json['devices']:
+                    for k in xrange(len(testing_project_json['devices'][j])):
+                        if testing_project_json['devices'][j][k] == "" or devices_infomation[i][devices_infomation_format[j]['name']] == testing_project_json['devices'][j][k]:
                             count_testing_qualifications_j += 1
                             break
 
-                if count_testing_qualifications_j == len(data['devices']):
+                if count_testing_qualifications_j == len(testing_project_json['devices']):
                     check_testing_qualifications = True
+                    devices_Through_rules.append(devices_infomation[i]['serialno'])
+            
+            # Get current time
+            nowTime = strftime('%Y-%m-%d-%H-%M-%S', localtime())
+            
+            if len(devices_Through_rules) > 0:
                 
-                # Get current time
-                nowTime = strftime('%Y-%m-%d-%H-%M-%S', localtime())
+                for devices_serialno in devices_Through_rules:
                 
-                print check_testing_qualifications
-                # if `check_testing_qualifications` is true can run <devices_infomation[i]['serialno']> this devices
-                if check_testing_qualifications:
-                    print test_project_name, nowTime, devices_infomation[i]['serialno']
-                    
-                    testing_result_folder = os.path.join(app.config['TESTING_RESULT_PROJECT'])
-                    
-                    if not os.path.exists(testing_result_folder):
-                        os.makedirs(testing_result_folder)
-                    
-                    testing_project_folder = os.path.join(testing_result_folder, test_project_name)
-
-                    if not os.path.exists(testing_project_folder):
-                        os.makedirs(testing_project_folder)
-
-                    testing_nowTime_folder = os.path.join(testing_project_folder, nowTime)
-    
-                    if not os.path.exists(testing_nowTime_folder):
-                        os.makedirs(testing_nowTime_folder)
-
-                    testing_serialno_folder = os.path.join(testing_nowTime_folder, devices_infomation[i]['serialno'])
-    
-                    if not os.path.exists(testing_serialno_folder):
-                        os.makedirs(testing_serialno_folder)
-
-                    # To create and start the thread then append it to threads
-                    t = threadServer(test_project_name, nowTime, devices_infomation[i]['serialno'])
+                    check_dir_exists(os.path.join(app.config['TESTING_RESULT_PROJECT'], test_project_name, nowTime, devices_serialno))
+                    t = threadServer(test_project_name, nowTime, devices_serialno)
                     t.start()
                     threads.append(t)
                     count += 1
-                        
-            if count == len(devices_infomation):
-                return "All projects complete."
+
+            if count == 0:
+                return "Not devices run projects complete."
+            #elif count == len(devices_infomation):
+                #return "All projects complete."
             else:
                 return "{0} tested. {1} left.".format(count, len(devices_infomation) - count)
 
@@ -444,19 +306,18 @@ def testing_project():
         Please re-enter the command
         '''
 
-@app.route('/get_devices_info')
 def get_devices_info():
-    out = split_lines(subprocess.check_output(['adb', 'devices']))
+    command_adb_devices = split_lines(subprocess.check_output(['adb', 'devices']))
     
     count = 1
-    devices = []
+    array_devices_information = []
     
     # read data.json file to get `devices_info` data format
     with codecs.open('data_format.json') as data_file:
         devices_infomation_data = json.load(data_file)
 
-    devices.append('[')
-    for line in out[1:]:
+    array_devices_information.append('{')
+    for line in command_adb_devices[1:]:
         
         if not line.strip():
             continue
@@ -467,44 +328,38 @@ def get_devices_info():
 
         else:
             device_json_data_count = 0
-            devices.append('{')
+            
+            # Devices Serialno
+            info = line.split('\t')
+            array_devices_information.append('"')
+            array_devices_information.append(info[0])
+            array_devices_information.append('"')
+            
+            array_devices_information.append(':{')
             
             for key in devices_infomation_data['devices_info']:
-                devices.append('"')
-                devices.append(devices_infomation_data[key]['name'])
-                devices.append('"')
-                devices.append(':')
-                if 'offline' in line:
-                    
-                    if key == "serial_number":
-                        
-                        # Devices Serialno
-                        info = line.split('\t')
-                        devices.append('"')
-                        devices.append(info[0])
-                        devices.append('"')
-                    
-                    elif key == "status":
-                        info = line.split('\t')
-                        devices.append('"')
-                        devices.append(info[1])
-                        devices.append('"')
-                    else :
-                        devices.append('"')
-                        devices.append('"')
-                        device_json_data_count += 1
-                    
-                    if device_json_data_count < len(devices_infomation_data['devices_info']):
-                        devices.append(',')
-                    continue
+                array_devices_information.append('"')
+                array_devices_information.append(devices_infomation_data[key]['name'])
+                array_devices_information.append('"')
+                array_devices_information.append(':')
                 
                 if key == "serial_number":
                     
                     # Devices Serialno
-                    info = line.split('\t')
-                    devices.append('"')
-                    devices.append(info[0])
-                    devices.append('"')
+                    array_devices_information.append('"')
+                    array_devices_information.append(info[0])
+                    array_devices_information.append('"')
+                
+                elif key == "status" or 'offline' in line :
+                    
+                    if key == "status":
+                        array_devices_information.append('"')
+                        array_devices_information.append(info[1])
+                        array_devices_information.append('"')
+                    else :
+                        array_devices_information.append('"')
+                        array_devices_information.append('"')
+                        array_devices_information += 1
         
                 elif key == "display":
                 
@@ -520,61 +375,91 @@ def get_devices_info():
                         cmd_adb_get_devices_lcd_density.extend(['-s' , info[0]])
                         cmd_adb_get_devices_lcd_density.extend(devices_infomation_data[key]['command2'])
                         cmd_adb_get_devices_lcd_density = subprocess.check_output(cmd_adb_get_devices_lcd_density).strip('\r\n')
-                    devices.append('"')
-                    devices.append(cmd_adb_get_devices_lcd_density)
-                    devices.append('"')
+                    array_devices_information.append('"')
+                    array_devices_information.append(cmd_adb_get_devices_lcd_density)
+                    array_devices_information.append('"')
 
                 elif key == "size":
                     cmd_adb_get_devices_size = ['adb']
                     cmd_adb_get_devices_size.extend(['-s' , info[0]])
                     cmd_adb_get_devices_size.extend(devices_infomation_data[key]['command'])
                     cmd_adb_get_devices_size = subprocess.check_output(cmd_adb_get_devices_size).strip('\r\n')
-                    devices_split = cmd_adb_get_devices_size.split(': ')
-                    devices.append('"')
-                    devices.append(devices_split[1])
-                    devices.append('"')
+                    cmd_adb_get_devices_size_split = cmd_adb_get_devices_size.split(': ')
+                    array_devices_information.append('"')
+                    array_devices_information.append(cmd_adb_get_devices_size_split[1])
+                    array_devices_information.append('"')
                 
                 elif key == "deviceType":
                     
-                    devices_size = devices_split[1].split('x')
+                    devices_size = cmd_adb_get_devices_size_split[1].split('x')
                     display_size = math.sqrt(pow(float(devices_size[0])/float(cmd_adb_get_devices_lcd_density),2)+pow(float(devices_size[1])/float(cmd_adb_get_devices_lcd_density),2))
-                    devices.append('"')
+                    array_devices_information.append('"')
                     if display_size >= 7:
-                        devices.append('Tablet')
+                        array_devices_information.append('Tablet')
                     else :
-                        devices.append('Smartphone')
-                    devices.append('"')
-        
-                elif key == "status":
-                
-                    devices.append('"')
-                    devices.append(info[1])
-                    devices.append('"')
-                
+                        array_devices_information.append('Smartphone')
+                    array_devices_information.append('"')
+
                 else:
                     cmd_adb_get_devices_model = ['adb']
                     cmd_adb_get_devices_model.extend(['-s' , info[0]])
                     cmd_adb_get_devices_model.extend(devices_infomation_data[key]['command'])
                     cmd_adb_get_devices_model = subprocess.check_output(cmd_adb_get_devices_model).strip('\r\n')
-                    devices.append('"')
-                    devices.append(cmd_adb_get_devices_model)
-                    devices.append('"')
+                    array_devices_information.append('"')
+                    array_devices_information.append(cmd_adb_get_devices_model)
+                    array_devices_information.append('"')
+
                 device_json_data_count += 1
                 
                 if device_json_data_count < len(devices_infomation_data['devices_info']):
-                    devices.append(',')
+                    array_devices_information.append(',')
 
-            devices.append('}')
+            array_devices_information.append('}')
             count += 1
-            if count < len(out):
-                devices.append(',')
+            if count < len(command_adb_devices):
+                array_devices_information.append(',')
 
-    devices.append(']')
-    ret = ''.join(devices)
+    array_devices_information.append('}')
+    Json_devices_information = ''.join(array_devices_information)
     
-    with codecs.open('devices.json', 'w', 'utf-8') as f:
-        f.write(ret)
+    with codecs.open(app.config['DEVICES_INFORNATION'], 'w', 'utf-8') as f:
+        f.write(Json_devices_information)
 
+    return redirect(url_for('home'))
+
+@app.route("/")
+def home():
+    
+    if check_file_is_file(app.config['DEVICES_INFORNATION']):
+        get_devices_info()
+    
+    devices_infomation_format = read_JSON(app.config['DATA_FORMAT'])
+    
+    devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
+
+    response_devices_info = []
+    response_devices_info.append("<table>")
+
+    response_devices_info.append("<tr>")
+    for data_format in devices_infomation_format['devices_info']:
+        response_devices_info.append("<td>")
+        response_devices_info.append(data_format)
+        response_devices_info.append("</td>")
+    response_devices_info.append("<tr>")
+    
+    for i in devices_infomation:
+        response_devices_info.append("<tr>")
+        for j in devices_infomation[i]:
+            
+            response_devices_info.append("<td>")
+            response_devices_info.append(devices_infomation[i][j])
+            response_devices_info.append("</td>")
+        
+        response_devices_info.append("</tr>")
+
+    response_devices_info.append("</table>")
+
+    ret = ''.join(response_devices_info)
     return Response(ret)
 
 if __name__ == "__main__":
