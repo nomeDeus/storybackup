@@ -423,7 +423,7 @@ def get_devices_info():
 
     array_devices_information.append('}')
     Json_devices_information = ''.join(array_devices_information)
-
+    
     with codecs.open(app.config['DEVICES_INFORNATION'], 'w', 'utf-8') as f:
         f.write(Json_devices_information)
     
