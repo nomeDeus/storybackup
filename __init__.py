@@ -59,7 +59,6 @@ def split_lines(s):
     return re.split(r'[\r\n]+', s.rstrip())
 
 def read_JSON(path_filename):
-
     with open(path_filename) as data_file:
         data = json.load(data_file, object_pairs_hook=OrderedDict)
     return data
