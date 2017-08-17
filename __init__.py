@@ -150,17 +150,18 @@ class threadServer(threading.Thread):
         self.lock = threading.Lock()
     
     def run(self):
+        check_devices_infortion(self.dev_name, 'busy')
         self.lock.acquire()
         cmd_get_apk_package_name = ['./testing_project.sh', self.pro_name, self.Time, self.dev_name]
         cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
         self.lock.release()
+        check_devices_infortion(self.dev_name, 'device')
 
 # Uploads Json file to testing project
 @app.route('/uploads_testing_project', methods=['GET', 'POST'])
 def uploads_testing_project():
     if request.method == 'POST':
         threads = []
-        devices_info = []
         count = 0
         # check if the post request has the file part
         if 'testing_project_json' not in request.files:
@@ -223,15 +224,21 @@ def uploads_testing_project():
             # Get current time
             nowTime = strftime('%Y-%m-%d-%H-%M-%S', localtime())
             
-            if len(devices_Through_rules) > 0:
+            while len(devices_Through_rules) > 0:
                 
                 for devices_serialno in devices_Through_rules:
-                
-                    check_dir_exists(os.path.join(app.config['TESTING_RESULT_PROJECT'], test_project_name, nowTime, devices_serialno))
-                    t = threadServer(test_project_name, nowTime, devices_serialno)
-                    t.start()
-                    threads.append(t)
-                    count += 1
+                    
+                    if devices_infomation[devices_serialno]['status'] == "device":
+                        check_dir_exists(os.path.join(app.config['TESTING_RESULT_PROJECT'], test_project_name, nowTime, devices_serialno))
+                        project_thread = threadServer(test_project_name, nowTime, devices_serialno)
+                        project_thread.start()
+                        threads.append(project_thread)
+                        devices_Through_rules.remove(devices_serialno)
+                        count += 1
+
+            # Wait for all threads to complete
+            for t in threads:
+                t.join()
 
             if count == 0:
                 return "Not devices run projects complete."
@@ -430,27 +437,38 @@ def get_devices_info():
 
     return redirect(url_for('home'))
 
-@app.route('/check_devices_information')
-def check_devices_infortion():
+def check_devices_infortion(serialno, status):
+    
+    devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
+    
+    devices_infomation[serialno]['status'] = status
+
+    write_JSON(app.config['DEVICES_INFORNATION'], devices_infomation)
+
+@app.route('/get_status')
+def get_status():
+    
+    informations = []
     
     devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
     
     command_adb_devices = split_lines(subprocess.check_output(['adb', 'devices']))
-    
+
     for line in command_adb_devices[1:]:
         if not line.strip():
             continue
         
         if '* daemon not running. starting it now at tcp:5037 *' in line or 'daemon started successfully' in line:
-            count += 1
             continue
         
         else:
             info = line.split('\t')
-            devices_infomation[info[0]]['status'] = 'busy'
-
-    write_JSON(app.config['DEVICES_INFORNATION'], devices_infomation)
-    return redirect(url_for('home'))
+            informations.append(info[0])
+            informations.append('\t')
+            informations.append(devices_infomation[info[0]]['status'])
+                
+    ret = ''.join(informations)
+    return Response(ret)
 
 @app.route('/')
 def home():
