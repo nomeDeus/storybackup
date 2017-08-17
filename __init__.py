@@ -316,8 +316,7 @@ def get_devices_info():
     array_devices_information = []
     
     # read data.json file to get `devices_info` data format
-    with codecs.open('data_format.json') as data_file:
-        devices_infomation_data = json.load(data_file)
+    devices_infomation_data = read_JSON(app.config['DATA_FORMAT'])
 
     array_devices_information.append('{')
     for line in command_adb_devices[1:]:
@@ -424,10 +423,10 @@ def get_devices_info():
 
     array_devices_information.append('}')
     Json_devices_information = ''.join(array_devices_information)
-    
+
     with codecs.open(app.config['DEVICES_INFORNATION'], 'w', 'utf-8') as f:
         f.write(Json_devices_information)
-
+    
     return redirect(url_for('home'))
 
 @app.route('/check_devices_information')
