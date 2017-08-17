@@ -64,6 +64,10 @@ def read_JSON(path_filename):
         data = json.load(data_file, object_pairs_hook=OrderedDict)
     return data
 
+def write_JSON(path_filename, data_json):
+    with open(path_filename, 'w') as f:
+        f.write(json.dumps(data_json))
+
 # Check directory exists
 # if is not exists, then can create the <path_dir>
 def check_dir_exists(path_dir):
@@ -444,14 +448,10 @@ def check_devices_infortion():
         
         else:
             info = line.split('\t')
-            
-            if info[0] in devices_infomation:
-                
+            devices_infomation[info[0]]['status'] = 'busy'
 
-
-    return '''
-        Please re-enter the command
-        '''
+    write_JSON(app.config['DEVICES_INFORNATION'], devices_infomation)
+    return redirect(url_for('home'))
 
 @app.route('/')
 def home():
