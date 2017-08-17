@@ -427,7 +427,33 @@ def get_devices_info():
 
     return redirect(url_for('home'))
 
-@app.route("/")
+@app.route('/check_devices_information')
+def check_devices_infortion():
+    
+    devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
+    
+    command_adb_devices = split_lines(subprocess.check_output(['adb', 'devices']))
+    
+    for line in command_adb_devices[1:]:
+        if not line.strip():
+            continue
+        
+        if '* daemon not running. starting it now at tcp:5037 *' in line or 'daemon started successfully' in line:
+            count += 1
+            continue
+        
+        else:
+            info = line.split('\t')
+            
+            if info[0] in devices_infomation:
+                
+
+
+    return '''
+        Please re-enter the command
+        '''
+
+@app.route('/')
 def home():
     
     if check_file_is_file(app.config['DEVICES_INFORNATION']):
@@ -448,6 +474,7 @@ def home():
     response_devices_info.append("<tr>")
     
     for i in devices_infomation:
+        print i
         response_devices_info.append("<tr>")
         for j in devices_infomation[i]:
             
