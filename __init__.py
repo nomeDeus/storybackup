@@ -437,7 +437,7 @@ def get_devices_info():
 
     return redirect(url_for('home'))
 
-def check_devices_infortion(serialno, status):
+def change_devices_status(serialno, status):
     
     devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
     
