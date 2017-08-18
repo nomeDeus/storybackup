@@ -269,6 +269,8 @@ def uploads_testing_project():
         input 'testing_project_json' key and value.
         '''
 
+# stop this function use
+'''
 @app.route('/testing_project', methods=['GET', 'POST'])
 def testing_project():
     if request.method == 'POST':
@@ -331,8 +333,9 @@ def testing_project():
             return "{0} tested. {1} left.".format(count, device_amount)
     
     return '''
-        Please re-enter the command
+        # Please re-enter the command
         '''
+'''
 
 def get_devices_info():
     command_adb_devices = split_lines(subprocess.check_output(['adb', 'devices']))
@@ -454,6 +457,7 @@ def get_devices_info():
     
     return redirect(url_for('home'))
 
+# change devices `serialno` information
 def change_devices_information(serialno, status):
 
 # Whether to change emulator devices name and information
@@ -514,7 +518,7 @@ def get_devices_status():
             informations.append(info[0])
             informations.append('\t')
             informations.append(devices_infomation[info[0]]['status'])
-	    informations.append('\n')
+            informations.append('\n')
                 
     ret = ''.join(informations)
     return Response(ret)
