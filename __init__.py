@@ -436,6 +436,36 @@ def get_devices_info():
     
     return redirect(url_for('home'))
 
+def change_devices_information(serialno, status):
+
+# Whether to change emulator devices name and information
+@app.route('/check_devices_information')
+def check_devices_information():
+    
+    devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
+    
+    command_adb_devices = split_lines(subprocess.check_output(['adb', 'devices']))
+    
+    for line in command_adb_devices[1:]:
+        if not line.strip():
+            continue
+        
+        if '* daemon not running. starting it now at tcp:5037 *' in line or 'daemon started successfully' in line:
+            count += 1
+            continue
+        
+        else:
+            
+            info = line.split('\t')
+            if not info[0] in devices_infomation:
+
+            else :
+                
+
+    write_JSON(app.config['DEVICES_INFORNATION'], devices_infomation)
+    return redirect(url_for('home'))
+
+# change devices status
 def change_devices_status(serialno, status):
     
     devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
@@ -444,8 +474,9 @@ def change_devices_status(serialno, status):
 
     write_JSON(app.config['DEVICES_INFORNATION'], devices_infomation)
 
-@app.route('/get_status')
-def get_status():
+# get devices status
+@app.route('/get_devices_status')
+def get_devices_status():
     
     informations = []
     
@@ -469,6 +500,7 @@ def get_status():
     ret = ''.join(informations)
     return Response(ret)
 
+# get devices all information
 @app.route('/')
 def home():
     
