@@ -150,12 +150,12 @@ class threadServer(threading.Thread):
         self.lock = threading.Lock()
     
     def run(self):
-        check_devices_infortion(self.dev_name, 'busy')
+        change_devices_status(self.dev_name, 'busy')
         self.lock.acquire()
         cmd_get_apk_package_name = ['./testing_project.sh', self.pro_name, self.Time, self.dev_name]
         cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
         self.lock.release()
-        check_devices_infortion(self.dev_name, 'device')
+        change_devices_status(self.dev_name, 'device')
 
 # Uploads Json file to testing project
 @app.route('/uploads_testing_project', methods=['GET', 'POST'])
