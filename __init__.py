@@ -8,6 +8,7 @@ import string
 import threading
 import json
 import codecs
+import Queue
 
 from subprocess import check_output, CalledProcessError
 from flask import Flask, Response, request, redirect, url_for, jsonify
@@ -147,21 +148,39 @@ class threadServer(threading.Thread):
         self.pro_name = test_project_name
         self.Time = nowTime
         self.dev_name = device_name
-        self.lock = threading.Lock()
     
     def run(self):
-        check_devices_infortion(self.dev_name, 'busy')
-        self.lock.acquire()
+        change_devices_status(self.dev_name, 'busy')
         cmd_get_apk_package_name = ['./testing_project.sh', self.pro_name, self.Time, self.dev_name]
         cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
-        self.lock.release()
-        check_devices_infortion(self.dev_name, 'device')
+        change_devices_status(self.dev_name, 'device')
+
+class threadArrangement(threading.Thread):
+    def __init__(self, queue, serialno_queue):
+        threading.Thread.__init__(self)
+        self.arragement = queue
+        self.serialno_queue = serialno_queue
+        self.lock = threading.Lock()
+
+    def run(self):
+        serialno = self.serialno_queue.get()
+        while not self.arragement.empty():
+            self.lock.acquire()
+            devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
+            
+            if devices_infomation[serialno]['status'] == "device":
+                t = self.arragement.get()
+                t.start()
+                if not self.serialno_queue.empty():
+                    serialno = self.serialno_queue.get()
+                self.lock.release()
+            else:
+                self.lock.release()
 
 # Uploads Json file to testing project
 @app.route('/uploads_testing_project', methods=['GET', 'POST'])
 def uploads_testing_project():
     if request.method == 'POST':
-        threads = []
         count = 0
         # check if the post request has the file part
         if 'testing_project_json' not in request.files:
@@ -224,21 +243,20 @@ def uploads_testing_project():
             # Get current time
             nowTime = strftime('%Y-%m-%d-%H-%M-%S', localtime())
             
-            while len(devices_Through_rules) > 0:
+            queue = Queue.Queue()
+            serialno_queue = Queue.Queue()
+            
+            if len(devices_Through_rules) > 0:
                 
                 for devices_serialno in devices_Through_rules:
-                    
-                    if devices_infomation[devices_serialno]['status'] == "device":
-                        check_dir_exists(os.path.join(app.config['TESTING_RESULT_PROJECT'], test_project_name, nowTime, devices_serialno))
-                        project_thread = threadServer(test_project_name, nowTime, devices_serialno)
-                        project_thread.start()
-                        threads.append(project_thread)
-                        devices_Through_rules.remove(devices_serialno)
-                        count += 1
+                    check_dir_exists(os.path.join(app.config['TESTING_RESULT_PROJECT'], test_project_name, nowTime, devices_serialno))
+                    project_thread = threadServer(test_project_name, nowTime, devices_serialno)
+                    queue.put(project_thread)
+                    serialno_queue.put(devices_serialno)
 
-            # Wait for all threads to complete
-            for t in threads:
-                t.join()
+                    count += 1
+                t = threadArrangement(queue, serialno_queue)
+                t.start()
 
             if count == 0:
                 return "Not devices run projects complete."
@@ -437,7 +455,7 @@ def get_devices_info():
 
     return redirect(url_for('home'))
 
-def check_devices_infortion(serialno, status):
+def change_devices_status(serialno, status):
     
     devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
     
