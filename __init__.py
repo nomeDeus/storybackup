@@ -484,6 +484,7 @@ def get_status():
             informations.append(info[0])
             informations.append('\t')
             informations.append(devices_infomation[info[0]]['status'])
+	    informations.append('\n')
                 
     ret = ''.join(informations)
     return Response(ret)
