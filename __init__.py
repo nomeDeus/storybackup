@@ -151,8 +151,8 @@ class threadServer(threading.Thread):
     
     def run(self):
         change_devices_status(self.dev_name, 'busy')
-        cmd_get_apk_package_name = ['./testing_project.sh', self.pro_name, self.Time, self.dev_name]
-        cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
+        #cmd_get_apk_package_name = ['./testing_project.sh', self.pro_name, self.Time, self.dev_name]
+        #cmd_testing_output = subprocess.check_output(cmd_get_apk_package_name)
         change_devices_status(self.dev_name, 'device')
 
 class threadArrangement(threading.Thread):
@@ -160,22 +160,27 @@ class threadArrangement(threading.Thread):
         threading.Thread.__init__(self)
         self.arragement = queue
         self.serialno_queue = serialno_queue
-        self.lock = threading.Lock()
 
     def run(self):
+        threads = []
         serialno = self.serialno_queue.get()
         while not self.arragement.empty():
-            self.lock.acquire()
-            devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
+            try:
+                devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
+            except ValueError:
+                continue
             
             if devices_infomation[serialno]['status'] == "device":
                 t = self.arragement.get()
                 t.start()
+                threads.append(t)
+                
                 if not self.serialno_queue.empty():
                     serialno = self.serialno_queue.get()
-                self.lock.release()
-            else:
-                self.lock.release()
+                self.arragement.task_done()
+    
+        for t in threads:
+            t.join()
 
 # Uploads Json file to testing project
 @app.route('/uploads_testing_project', methods=['GET', 'POST'])
@@ -253,10 +258,12 @@ def uploads_testing_project():
                     project_thread = threadServer(test_project_name, nowTime, devices_serialno)
                     queue.put(project_thread)
                     serialno_queue.put(devices_serialno)
-
                     count += 1
+                
                 t = threadArrangement(queue, serialno_queue)
                 t.start()
+                # Wait until all the tasks done
+                queue.join()
 
             if count == 0:
                 return "Not devices run projects complete."
@@ -270,72 +277,6 @@ def uploads_testing_project():
         '''
 
 # stop this function use
-'''
-@app.route('/testing_project', methods=['GET', 'POST'])
-def testing_project():
-    if request.method == 'POST':
-        threads = []
-        devices = []
-        #catch serial number
-        out = split_lines(subprocess.check_output(['adb', 'devices']))
-        for line in out[1:]:
-            if '* daemon not running. starting it now at tcp:5037 *' in line or 'daemon started successfully' in line:
-                continue
-            else:
-                info = line.split('\t')
-                devices.append(info[0])
-        
-        #catch project name
-        print "Getting test project name."
-        test_project_name = request.form.get('test_project_name')
-        if not test_project_name == 'null':
-            print "Test project name: {0}".format(test_project_name)
-        else:
-            print "Can't get test project name."
-            return "Error. Can't get test project name."
-        #catch device amount
-        print "Getting test device amount."
-        test_device_amount = request.form.get('test_device_amount')
-        if not test_project_name == 'null':
-            print "Test device amount: {0}".format(test_device_amount)
-        else:
-            print "Can't get test device amount."
-            return "Error. Can't get test device amount."
-        
-        count = 0
-        isCompleteAll = False
-        device_amount = int(test_device_amount, 10)
-        
-        if device_amount == 0:
-            return "Error: test_device_amout = 0"
-        
-        #get current time
-        print "Getting time."
-        nowTime = strftime('%Y-%m-%d-%H-%M-%S', localtime())
-        
-        print "Current time: " + nowTime
-        
-        #processins multi-threading
-        for i in xrange(device_amount):
-            print "{0} processing...".format(devices[count])
-            #to create and start the thread then append it to threads
-            t = threadServer(test_project_name, nowTime, devices[count])
-            t.start()
-            threads.append(t)
-            count += 1
-            if count == device_amount:
-                isCompleteAll = True
-                break
-    
-        if isCompleteAll:
-            return "All projects complete."
-        else:
-            return "{0} tested. {1} left.".format(count, device_amount)
-    
-    return '''
-        # Please re-enter the command
-        '''
-'''
 
 def get_devices_info():
     command_adb_devices = split_lines(subprocess.check_output(['adb', 'devices']))
@@ -458,7 +399,7 @@ def get_devices_info():
     return redirect(url_for('home'))
 
 # change devices `serialno` information
-def change_devices_information(serialno, status):
+#def change_devices_information(serialno, status):
 
 # Whether to change emulator devices name and information
 @app.route('/check_devices_information')
@@ -479,10 +420,10 @@ def check_devices_information():
         else:
             
             info = line.split('\t')
-            if not info[0] in devices_infomation:
+            #if not info[0] in devices_infomation:
 
-            else :
-                
+            #else :
+
 
     write_JSON(app.config['DEVICES_INFORNATION'], devices_infomation)
     return redirect(url_for('home'))
@@ -501,9 +442,9 @@ def change_devices_status(serialno, status):
 def get_devices_status():
     
     informations = []
-    
+
     devices_infomation = read_JSON(app.config['DEVICES_INFORNATION'])
-    
+
     command_adb_devices = split_lines(subprocess.check_output(['adb', 'devices']))
 
     for line in command_adb_devices[1:]:
@@ -517,7 +458,12 @@ def get_devices_status():
             info = line.split('\t')
             informations.append(info[0])
             informations.append('\t')
-            informations.append(devices_infomation[info[0]]['status'])
+            
+            if devices_infomation[info[0]]['status']:
+                informations.append(devices_infomation[info[0]]['status'])
+            else:
+                informations.append('Unknown')
+
             informations.append('\n')
                 
     ret = ''.join(informations)
@@ -547,10 +493,10 @@ def home():
     for i in devices_infomation:
         print i
         response_devices_info.append("<tr>")
-        for j in devices_infomation[i]:
+        for j in devices_infomation_format['devices_info']:
             
             response_devices_info.append("<td>")
-            response_devices_info.append(devices_infomation[i][j])
+            response_devices_info.append(devices_infomation[i][devices_infomation_format[j]['name']])
             response_devices_info.append("</td>")
         
         response_devices_info.append("</tr>")
